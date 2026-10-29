@@ -53,7 +53,15 @@ BEGIN
 END;
 $$;
 
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- На Supabase RLS на storage.objects уже включён, а владелец таблицы — supabase_storage_admin,
+-- поэтому ALTER выполняем только если RLS выключен (голый Postgres в тестах).
+DO $$
+BEGIN
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'storage.objects'::regclass) THEN
+    ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+  END IF;
+END;
+$$;
 
 DROP POLICY IF EXISTS verification_certificates_select ON storage.objects;
 CREATE POLICY verification_certificates_select
