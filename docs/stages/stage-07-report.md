@@ -19,7 +19,7 @@ Pull request: https://github.com/mfk096/-/pull/9 (база `main`).
 
 Адрес сайта: https://mfk096.github.io/-/
 
-На момент отчёта по этому адресу ответ GitHub **404**. Страница входа не открывается: Pages не включены, а у агента нет права создать сайт и переменные (`POST /repos/mfk096/-/pages` и `gh variable set` вернули `403 Resource not accessible by integration`). Anon key в облачном проекте `wehdetsnxqbfjrfhopzh` есть (legacy anon, не отключён), в репозиторий он не записан.
+Первый прогон [40915154879](https://github.com/mfk096/-/actions/runs/40915154879) упал на шаге «Настроить Pages»: сайт ещё не был включён (`Get Pages site failed`, 404). После этого владелец включил Pages (source: GitHub Actions) и задал переменные `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_APP_URL`. Повторный запуск из агента недоступен (workflow_dispatch отвечает 403), поэтому следующий push в `main` заново запускает Deploy GitHub Pages и Android APK.
 
 Ссылка на APK: https://github.com/mfk096/-/releases/download/latest-apk/app-debug.apk
 
