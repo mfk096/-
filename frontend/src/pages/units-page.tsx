@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
@@ -15,9 +15,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { useLocations } from '@/hooks/use-catalogs'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAccess } from '@/hooks/use-profile'
+import { changeEquipmentStatusBulk, moveEquipmentBulk } from '@/lib/equipment-bulk'
 import { errorText } from '@/lib/errors'
 import { emptyToNull, unitsLabel } from '@/lib/format'
 import { equipmentBulkLimit } from '@/lib/journal'
+import { stashLabelCodes } from '@/lib/label-settings'
 import { placeResponsibleNote } from '@/lib/location-tree'
 import { equipmentStatuses, isEquipmentStatus } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
@@ -47,6 +49,7 @@ const emptyDraft: Draft = {
 
 export function UnitsPage() {
   const access = useAccess()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('q') ?? '')
@@ -142,22 +145,20 @@ export function UnitsPage() {
     await queryClient.invalidateQueries({ queryKey: ['nomenclature'] })
   }
 
+  function openLabels() {
+    const codes = visibleRows.filter((row) => selected.has(row.id)).map((row) => row.code)
+    if (codes.length === 0) return
+    if (codes.length > equipmentBulkLimit) {
+      toast.error(`За один раз можно напечатать не больше ${equipmentBulkLimit} этикеток`)
+      return
+    }
+    stashLabelCodes(codes)
+    navigate('/labels?from=selection')
+  }
+
   const moveBulk = useMutation({
-    mutationFn: async (input: { locationId: string | null; comment: string }) => {
-      const client = supabase
-      if (!client) throw new Error('Supabase не настроен.')
-      if (selectedIds.length === 0) throw new Error('Выберите хотя бы одну единицу.')
-      if (selectedIds.length > equipmentBulkLimit) {
-        throw new Error(`За один раз можно изменить не больше ${equipmentBulkLimit} единиц`)
-      }
-      const { error } = await client.rpc('move_equipment_bulk', {
-        equipment_ids: selectedIds,
-        to_location_id: input.locationId,
-        comment: emptyToNull(input.comment),
-      })
-      if (error) throw error
-      return selectedIds.length
-    },
+    mutationFn: (input: { locationId: string | null; comment: string }) =>
+      moveEquipmentBulk(selectedIds, input.locationId, input.comment),
     onSuccess: async (count) => {
       setSelected(new Set())
       await refreshLists()
@@ -167,21 +168,8 @@ export function UnitsPage() {
   })
 
   const statusBulk = useMutation({
-    mutationFn: async (input: { status: EquipmentStatus; comment: string }) => {
-      const client = supabase
-      if (!client) throw new Error('Supabase не настроен.')
-      if (selectedIds.length === 0) throw new Error('Выберите хотя бы одну единицу.')
-      if (selectedIds.length > equipmentBulkLimit) {
-        throw new Error(`За один раз можно изменить не больше ${equipmentBulkLimit} единиц`)
-      }
-      const { error } = await client.rpc('change_equipment_status_bulk', {
-        equipment_ids: selectedIds,
-        new_status: input.status,
-        comment: emptyToNull(input.comment),
-      })
-      if (error) throw error
-      return selectedIds.length
-    },
+    mutationFn: (input: { status: EquipmentStatus; comment: string }) =>
+      changeEquipmentStatusBulk(selectedIds, input.status, input.comment),
     onSuccess: async (count) => {
       setSelected(new Set())
       await refreshLists()
@@ -279,9 +267,14 @@ export function UnitsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <p className="font-mono text-3xl font-semibold tracking-wide">{createdCode}</p>
-            <Button asChild className="h-11 w-full sm:w-auto">
-              <Link to={`/units/${createdCode}`}>Открыть карточку</Link>
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild className="h-11 w-full sm:w-auto">
+                <Link to={`/units/${createdCode}`}>Открыть карточку</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 w-full sm:w-auto">
+                <Link to={`/labels?codes=${encodeURIComponent(createdCode)}`}>Этикетка</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -482,7 +475,7 @@ export function UnitsPage() {
         </Card>
       ) : null}
 
-      {access.canEditEquipment && visibleRows.length > 0 ? (
+      {visibleRows.length > 0 ? (
         <UnitBulkActions
           selectedCount={selectedIds.length}
           shownCount={visibleRows.length}
@@ -490,6 +483,8 @@ export function UnitsPage() {
           someSelected={someSelected}
           locations={locationChoices}
           pending={moveBulk.isPending || statusBulk.isPending}
+          allowChanges={access.canEditEquipment}
+          onPrintLabels={openLabels}
           onToggleAll={() => {
             setSelected((current) => {
               if (allSelected) {
@@ -513,17 +508,15 @@ export function UnitsPage() {
           const responsible = placeResponsibleNote(row)
           return (
             <li key={row.id} className="flex items-stretch rounded-xl border bg-card">
-              {access.canEditEquipment ? (
-                <label className="flex w-12 shrink-0 cursor-pointer items-center justify-center">
-                  <input
-                    type="checkbox"
-                    className="size-5"
-                    checked={selected.has(row.id)}
-                    aria-label={`Выбрать ${row.code}`}
-                    onChange={() => toggleSelected(row.id)}
-                  />
-                </label>
-              ) : null}
+              <label className="flex w-12 shrink-0 cursor-pointer items-center justify-center">
+                <input
+                  type="checkbox"
+                  className="size-5"
+                  checked={selected.has(row.id)}
+                  aria-label={`Выбрать ${row.code}`}
+                  onChange={() => toggleSelected(row.id)}
+                />
+              </label>
               <Link
                 to={`/units/${row.code}`}
                 className="block min-w-0 flex-1 p-4 transition-colors hover:bg-accent/40"

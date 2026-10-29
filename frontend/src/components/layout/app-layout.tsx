@@ -19,23 +19,23 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-svh bg-background">
-      <div className="sticky top-0 hidden h-svh w-64 shrink-0 md:block">
+      <div className="no-print sticky top-0 hidden h-svh w-64 shrink-0 md:block">
         <SidebarNav />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b bg-background/95 px-3 backdrop-blur md:px-6">
+        <header className="no-print sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b bg-background/95 px-3 backdrop-blur md:px-6">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{current?.label ?? 'Инвентаризация'}</p>
           </div>
           <UserMenu />
         </header>
-        <main className="flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8">
+        <main className="app-main flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8">
           <Outlet />
         </main>
       </div>
       <MobileNav menuOpen={menuOpen} onOpenMenu={() => setMenuOpen(true)} />
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent id="mobile-sections" side="left" className="w-72 gap-0 p-0">
+        <SheetContent id="mobile-sections" side="left" className="no-print w-72 gap-0 p-0">
           <SheetHeader className="sr-only">
             <SheetTitle>Разделы</SheetTitle>
           </SheetHeader>

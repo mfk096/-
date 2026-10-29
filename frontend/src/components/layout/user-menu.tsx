@@ -1,4 +1,5 @@
 import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -18,6 +19,7 @@ import { useAuth } from '@/providers/auth-context'
 export function UserMenu() {
   const { user, signOut } = useAuth()
   const access = useAccess()
+  const navigate = useNavigate()
   if (!user) return null
 
   const display = getUserDisplay(user)
@@ -69,6 +71,11 @@ export function UserMenu() {
             ) : null}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {access.role === 'admin' ? (
+            <DropdownMenuItem onSelect={() => navigate('/connection')}>
+              Настройки подключения
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onSelect={() => {
               void handleSignOut()

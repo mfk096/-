@@ -22,6 +22,9 @@ export function UnitBulkActions({
   onClear,
   onMove,
   onChangeStatus,
+  onPrintLabels,
+  allowChanges = true,
+  hideSelection = false,
 }: {
   selectedCount: number
   shownCount: number
@@ -33,6 +36,9 @@ export function UnitBulkActions({
   onClear: () => void
   onMove: (locationId: string | null, comment: string) => void
   onChangeStatus: (status: EquipmentStatus, comment: string) => void
+  onPrintLabels?: () => void
+  allowChanges?: boolean
+  hideSelection?: boolean
 }) {
   const [mode, setMode] = useState<'move' | 'status' | null>(null)
   const [locationId, setLocationId] = useState('')
@@ -59,43 +65,60 @@ export function UnitBulkActions({
   return (
     <div className="flex flex-col gap-3">
       <div className="sticky top-14 z-10 flex flex-col gap-3 rounded-xl border bg-background/95 p-3 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input
-              ref={allRef}
-              type="checkbox"
-              className="size-5"
-              checked={allSelected}
-              disabled={shownCount === 0 || pending}
-              aria-label="Выбрать показанные единицы"
-              onChange={onToggleAll}
-            />
-            Выбрать показанные
-          </label>
-          <p className="text-sm text-muted-foreground">
-            Выбрано: {selectedCount}
-            {shownCount > 0 ? ` из ${shownCount}` : ''}
-          </p>
-        </div>
+        {hideSelection ? null : (
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                ref={allRef}
+                type="checkbox"
+                className="size-5"
+                checked={allSelected}
+                disabled={shownCount === 0 || pending}
+                aria-label="Выбрать показанные единицы"
+                onChange={onToggleAll}
+              />
+              Выбрать показанные
+            </label>
+            <p className="text-sm text-muted-foreground">
+              Выбрано: {selectedCount}
+              {shownCount > 0 ? ` из ${shownCount}` : ''}
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            className="h-11"
-            variant={mode === 'move' ? 'default' : 'outline'}
-            disabled={selectedCount === 0 || pending || overLimit}
-            onClick={() => setMode((current) => (current === 'move' ? null : 'move'))}
-          >
-            Переместить
-          </Button>
-          <Button
-            type="button"
-            className="h-11"
-            variant={mode === 'status' ? 'default' : 'outline'}
-            disabled={selectedCount === 0 || pending || overLimit}
-            onClick={() => setMode((current) => (current === 'status' ? null : 'status'))}
-          >
-            Сменить статус
-          </Button>
+          {allowChanges ? (
+            <Button
+              type="button"
+              className="h-11"
+              variant={mode === 'move' ? 'default' : 'outline'}
+              disabled={selectedCount === 0 || pending || overLimit}
+              onClick={() => setMode((current) => (current === 'move' ? null : 'move'))}
+            >
+              Переместить
+            </Button>
+          ) : null}
+          {allowChanges ? (
+            <Button
+              type="button"
+              className="h-11"
+              variant={mode === 'status' ? 'default' : 'outline'}
+              disabled={selectedCount === 0 || pending || overLimit}
+              onClick={() => setMode((current) => (current === 'status' ? null : 'status'))}
+            >
+              Сменить статус
+            </Button>
+          ) : null}
+          {onPrintLabels ? (
+            <Button
+              type="button"
+              className="h-11"
+              variant="outline"
+              disabled={selectedCount === 0 || pending || overLimit}
+              onClick={onPrintLabels}
+            >
+              Этикетки
+            </Button>
+          ) : null}
           {selectedCount > 0 ? (
             <Button
               type="button"
@@ -104,20 +127,26 @@ export function UnitBulkActions({
               disabled={pending}
               onClick={onClear}
             >
-              Снять выбор
+              {hideSelection ? 'Очистить список' : 'Снять выбор'}
             </Button>
           ) : null}
         </div>
-        {overLimit ? (
+        {allowChanges && overLimit ? (
           <p className="text-sm text-destructive" role="alert">
             За один раз можно изменить не больше {equipmentBulkLimit} единиц. Снимите лишние.
           </p>
-        ) : (
+        ) : null}
+        {allowChanges && !overLimit ? (
           <p className="text-xs leading-5 text-muted-foreground">
             Если хотя бы у одной выбранной единицы операция не пройдёт, не изменится ни одна.
             История пишется по каждой. Переносить можно при любом статусе.
           </p>
-        )}
+        ) : null}
+        {!allowChanges && overLimit ? (
+          <p className="text-sm text-destructive" role="alert">
+            За один раз можно напечатать не больше {equipmentBulkLimit} этикеток.
+          </p>
+        ) : null}
       </div>
 
       {mode === 'move' ? (

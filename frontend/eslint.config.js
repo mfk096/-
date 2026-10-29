@@ -7,7 +7,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(['dist', 'node_modules', 'android']),
   js.configs.recommended,
   tseslint.configs.recommended,
   reactRefresh.configs.vite,

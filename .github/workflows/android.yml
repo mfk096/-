@@ -1,0 +1,79 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: Сборка APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Пакеты SDK
+        run: yes | sdkmanager --licenses >/dev/null || true && sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Зависимости
+        working-directory: frontend
+        run: npm ci
+
+      - name: Сборка веба
+        working-directory: frontend
+        run: npm run build
+
+      - name: Capacitor sync
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Debug APK
+        working-directory: frontend/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Загрузить debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Release APK
+        working-directory: frontend/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD}" ] || [ -z "${ANDROID_KEY_ALIAS}" ] || [ -z "${ANDROID_KEY_PASSWORD}" ]; then
+            echo "Секреты подписи не заданы, release APK пропущен."
+            exit 0
+          fi
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          export ANDROID_KEYSTORE_PATH="${RUNNER_TEMP}/release.keystore"
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Загрузить release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-release-apk
+          path: frontend/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
