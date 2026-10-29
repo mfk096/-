@@ -164,7 +164,8 @@ export function UnitBulkActions({
                 className="grid gap-4"
                 onSubmit={(event) => {
                   event.preventDefault()
-                  onMove(locationId || null, moveComment)
+                  if (!locationId) return
+                  onMove(locationId, moveComment)
                 }}
               >
                 <Field label="Куда" htmlFor="bulk-location">
@@ -173,8 +174,7 @@ export function UnitBulkActions({
                     locations={locations}
                     value={locationId}
                     onChange={setLocationId}
-                    allowEmpty
-                    emptyLabel="Не назначено"
+                    emptyLabel="Выберите место"
                   />
                 </Field>
                 <Field label="Комментарий" htmlFor="bulk-move-comment">
@@ -187,7 +187,7 @@ export function UnitBulkActions({
                 <Button
                   type="submit"
                   className="h-11 w-full sm:w-auto"
-                  disabled={pending || overLimit}
+                  disabled={pending || overLimit || !locationId}
                 >
                   {pending ? 'Перемещение…' : 'Переместить выбранные'}
                 </Button>

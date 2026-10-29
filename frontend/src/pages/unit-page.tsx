@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
@@ -26,6 +26,8 @@ import type { EquipmentStatus } from '@/types/database'
 
 export function UnitPage() {
   const { code = '' } = useParams()
+  const [params] = useSearchParams()
+  const formerFromQuery = params.get('former')
   const access = useAccess()
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<EquipmentStatus | ''>('')
@@ -37,22 +39,35 @@ export function UnitPage() {
   const [notes, setNotes] = useState<string | null>(null)
 
   const unit = useQuery({
-    queryKey: ['equipment', 'card', code],
+    queryKey: ['equipment', 'card', code, formerFromQuery],
     enabled: Boolean(supabase && code),
     queryFn: async () => {
       const client = supabase
       if (!client) throw new Error('Supabase не настроен.')
-      const { data, error } = await client
-        .from('equipment_list')
-        .select('*')
+      const loaded = await client.from('equipment_list').select('*').eq('code', code).maybeSingle()
+      if (loaded.error) throw loaded.error
+      if (loaded.data) {
+        return { row: loaded.data, formerCode: formerFromQuery }
+      }
+      const alias = await client
+        .from('equipment_former_codes')
+        .select('equipment_id, code')
         .eq('code', code)
         .maybeSingle()
-      if (error) throw error
-      return data
+      if (alias.error) throw alias.error
+      if (!alias.data) return { row: null, formerCode: null }
+      const current = await client
+        .from('equipment_list')
+        .select('*')
+        .eq('id', alias.data.equipment_id)
+        .maybeSingle()
+      if (current.error) throw current.error
+      return { row: current.data, formerCode: alias.data.code }
     },
   })
 
-  const row = unit.data
+  const row = unit.data?.row ?? null
+  const formerCode = unit.data?.formerCode ?? null
   const equipmentId = row?.id
 
   const history = useQuery({
@@ -107,6 +122,7 @@ export function UnitPage() {
       const client = supabase
       if (!client || !equipmentId) throw new Error('Единица не найдена.')
       const nextLocation = locationId === null ? (row?.location_id ?? '') : locationId
+      if (!nextLocation) throw new Error('Укажите место установки.')
       const { error } = await client.rpc('move_equipment', {
         equipment_id: equipmentId,
         to_location_id: nextLocation || null,
@@ -157,7 +173,7 @@ export function UnitPage() {
           ← К списку единиц
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <h1 className="font-mono text-2xl font-semibold tracking-tight">{code}</h1>
+          <h1 className="font-mono text-2xl font-semibold tracking-tight">{row?.code ?? code}</h1>
           {row ? (
             <Button asChild variant="outline" className="h-11">
               <Link to={`/labels?codes=${encodeURIComponent(row.code)}`}>Этикетка</Link>
@@ -177,7 +193,7 @@ export function UnitPage() {
         </p>
       ) : null}
 
-      {unit.data === null ? (
+      {unit.isSuccess && !row ? (
         <Card>
           <CardHeader>
             <CardTitle>Единица не найдена</CardTitle>
@@ -188,6 +204,21 @@ export function UnitPage() {
 
       {row ? (
         <>
+          {formerCode ? (
+            <div
+              className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+              role="status"
+            >
+              <p className="font-medium">
+                Этикетка устарела: старый код {formerCode}, новый {row.code} — замените этикетку
+              </p>
+              <Button asChild className="mt-3 h-11 w-full sm:w-auto">
+                <Link to={`/labels?codes=${encodeURIComponent(row.code)}`}>
+                  Печать новой этикетки
+                </Link>
+              </Button>
+            </div>
+          ) : null}
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -202,9 +233,8 @@ export function UnitPage() {
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
               <div className="flex items-center gap-4 sm:col-span-2">
                 <UnitQr code={row.code} pixels={256} className="size-28 shrink-0" />
-                <p className="text-muted-foreground">
-                  В QR записан только код {row.code}. Адреса сервера там нет, этикетку не нужно
-                  перепечатывать при переезде.
+                <p className="min-w-0 text-muted-foreground break-words">
+                  QR открывает эту карточку по ссылке. Код {row.code} напечатан рядом.
                 </p>
               </div>
               <p>
@@ -392,8 +422,7 @@ export function UnitPage() {
                       locations={locationChoices}
                       value={currentLocation}
                       onChange={setLocationId}
-                      allowEmpty
-                      emptyLabel="Не назначено"
+                      emptyLabel="Выберите место"
                     />
                   </Field>
                   <Field label="Комментарий" htmlFor="card-move-comment">

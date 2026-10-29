@@ -126,16 +126,16 @@ BEGIN
   VALUES ('SUMQ', 'Сводка поверок', true, 12)
   RETURNING id INTO v_nom;
 
-  INSERT INTO public.equipment (nomenclature_id, status, next_verification_date)
+  INSERT INTO public.equipment (nomenclature_id, status, location_id, next_verification_date)
   VALUES
-    (v_nom, 'in_work', CURRENT_DATE - 1),
-    (v_nom, 'in_work', CURRENT_DATE),
-    (v_nom, 'in_work', CURRENT_DATE + 10),
-    (v_nom, 'in_work', CURRENT_DATE + 40),
-    (v_nom, 'reserve', NULL);
+    (v_nom, 'in_work', '55555555-5555-4555-8555-555555555551', CURRENT_DATE - 1),
+    (v_nom, 'in_work', '55555555-5555-4555-8555-555555555551', CURRENT_DATE),
+    (v_nom, 'in_work', '55555555-5555-4555-8555-555555555551', CURRENT_DATE + 10),
+    (v_nom, 'in_work', '55555555-5555-4555-8555-555555555551', CURRENT_DATE + 40),
+    (v_nom, 'reserve', '55555555-5555-4555-8555-555555555551', NULL);
 
-  INSERT INTO public.equipment (nomenclature_id, status, next_verification_date)
-  VALUES (v_nom, 'written_off', CURRENT_DATE - 1)
+  INSERT INTO public.equipment (nomenclature_id, status, location_id, next_verification_date)
+  VALUES (v_nom, 'written_off', '55555555-5555-4555-8555-555555555551', CURRENT_DATE - 1)
   RETURNING code INTO v_code;
 
   SELECT overdue, soon, ok, no_data
@@ -320,8 +320,8 @@ BEGIN
   VALUES ('VEDT', 'Поверка редактора', true, 6)
   RETURNING id INTO v_nom;
 
-  INSERT INTO public.equipment (nomenclature_id, status)
-  VALUES (v_nom, 'on_verification')
+  INSERT INTO public.equipment (nomenclature_id, status, location_id)
+  VALUES (v_nom, 'on_verification', '55555555-5555-4555-8555-555555555551')
   RETURNING id INTO v_eq;
 
   PERFORM set_config('request.jwt.claim.sub', v_editor::text, false);
@@ -721,13 +721,14 @@ BEGIN
       'status', 'На поверке',
       'last_verification_date', '2026-01-15',
       'next_verification_date', '2027-01-15',
-      'location_path', ''
+      'location_path', 'Завод Импорт → Цех Импорт → Участок Импорт'
     ),
     jsonb_build_object(
       'row', 3,
       'code_prefix', 'SCAL2',
       'status', 'in_work',
-      'serial_number', 'SN-SCALE-A'
+      'serial_number', 'SN-SCALE-A',
+      'location_path', 'Завод Импорт → Цех Импорт → Участок Импорт'
     )
   ));
   IF v_result->'codes'->>0 <> 'SCAL2-001'
@@ -741,7 +742,7 @@ BEGIN
       AND status = 'on_verification'
       AND last_verification_date = date '2026-01-15'
       AND next_verification_date = date '2027-01-15'
-      AND location_id IS NULL
+      AND location_id IS NOT NULL
   ) THEN
     RAISE EXCEPTION 'FAIL: даты или статус SCAL2-001';
   END IF;
@@ -775,8 +776,8 @@ BEGIN
   END IF;
 
   v_result := public.import_equipment(jsonb_build_array(
-    jsonb_build_object('row', 2, 'code_prefix', 'IMPT', 'status', 'Списано', 'serial_number', 'SN-DUP'),
-    jsonb_build_object('row', 3, 'code_prefix', 'IMPT', 'status', 'Резерв', 'serial_number', 'sn-dup')
+    jsonb_build_object('row', 2, 'code_prefix', 'IMPT', 'status', 'Списано', 'serial_number', 'SN-DUP', 'location_path', 'Завод Импорт → Цех Импорт → Участок Импорт'),
+    jsonb_build_object('row', 3, 'code_prefix', 'IMPT', 'status', 'Резерв', 'serial_number', 'sn-dup', 'location_path', 'Завод Импорт → Цех Импорт → Участок Импорт')
   ));
   IF (v_result->>'created')::integer <> 2 OR jsonb_array_length(v_result->'warnings') <> 1 THEN
     RAISE EXCEPTION 'FAIL: предупреждение о серийнике %', v_result;

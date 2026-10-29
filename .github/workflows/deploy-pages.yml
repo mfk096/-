@@ -1,0 +1,73 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Сборка и публикация
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Настроить Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Install
+        run: npm ci
+
+      # VITE_BASE берётся из Pages (для этого репозитория это /-).
+      # Ключи — repository variables, в git их нет.
+      # Пустые переменные не роняют сборку: страница входа объяснит, что заполнить.
+      - name: Build
+        env:
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_PUBLIC_APP_URL: ${{ vars.VITE_PUBLIC_APP_URL }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::warning::Не заданы переменные VITE_SUPABASE_URL и/или VITE_SUPABASE_ANON_KEY. Сайт откроется, но форма входа попросит ключи."
+          fi
+          npm run build
+
+      - name: SPA fallback
+        run: |
+          test -f dist/404.html
+          test -f dist/index.html
+          touch dist/.nojekyll
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

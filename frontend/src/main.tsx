@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { BrowserRouter } from 'react-router-dom'
+import { routerBasename } from '@/lib/router-base'
 import { Toaster } from '@/components/ui/sonner'
 import { AndroidBackButton } from '@/components/android-back-button'
 import { AuthProvider } from '@/providers/auth-provider'
@@ -30,7 +31,7 @@ createRoot(rootElement).render(
       <ConnectionProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={routerBasename()}>
               <AndroidBackButton />
               <App />
             </BrowserRouter>

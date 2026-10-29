@@ -7,6 +7,7 @@ export type Database = {
         Row: {
           id: string
           full_name: string
+          email: string | null
           role: Database['public']['Enums']['app_role']
           is_active: boolean
           created_at: string
@@ -15,6 +16,7 @@ export type Database = {
         Insert: {
           id: string
           full_name: string
+          email?: string | null
           role?: Database['public']['Enums']['app_role']
           is_active?: boolean
           created_at?: string
@@ -22,6 +24,7 @@ export type Database = {
         }
         Update: {
           full_name?: string
+          email?: string | null
           role?: Database['public']['Enums']['app_role']
           is_active?: boolean
           created_at?: string
@@ -74,7 +77,7 @@ export type Database = {
           id: string
           parent_id: string | null
           name: string
-          kind: string
+          kind: string | null
           responsible_employee_id: string | null
           is_archived: boolean
           created_at: string
@@ -84,7 +87,7 @@ export type Database = {
           id?: string
           parent_id?: string | null
           name: string
-          kind: string
+          kind?: string | null
           responsible_employee_id?: string | null
           is_archived?: boolean
           created_at?: string
@@ -367,6 +370,24 @@ export type Database = {
           },
         ]
       }
+      equipment_former_codes: {
+        Row: {
+          code: string
+          equipment_id: string
+          replaced_at: string
+        }
+        Insert: {
+          code: string
+          equipment_id: string
+          replaced_at?: string
+        }
+        Update: {
+          code?: string
+          equipment_id?: string
+          replaced_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       locations_with_path: {
@@ -374,7 +395,7 @@ export type Database = {
           id: string
           parent_id: string | null
           name: string
-          kind: string
+          kind: string | null
           responsible_employee_id: string | null
           is_archived: boolean
           created_at: string
@@ -654,6 +675,24 @@ export type Database = {
           p_rows: Json
         }
         Returns: Json
+      }
+      rename_nomenclature_prefix: {
+        Args: {
+          p_id: string
+          p_prefix: string
+        }
+        Returns: {
+          equipment_id: string
+          old_code: string
+          new_code: string
+        }[]
+      }
+      insert_location_above: {
+        Args: {
+          anchor_id: string
+          place_name: string
+        }
+        Returns: string
       }
     }
     Enums: {

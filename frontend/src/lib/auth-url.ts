@@ -1,6 +1,6 @@
 export function hasRecoveryHint(): boolean {
-  const raw = `${window.location.hash}&${window.location.search}`
-  return raw.includes('type=recovery')
+  const raw = `${window.location.hash}&${window.location.search}`.toLowerCase()
+  return raw.includes('type=recovery') || raw.includes('type=invite') || raw.includes('type=signup')
 }
 
 export function readUrlAuthError(): string | null {

@@ -48,7 +48,7 @@ run_rules() {
   local i pid
   local pids=()
   for i in $(seq 1 20); do
-    psql_db "$url" -c "SELECT set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false); SELECT set_config('request.jwt.claims', '{\"sub\":\"11111111-1111-4111-8111-111111111111\"}', false); INSERT INTO public.equipment (nomenclature_id, status) VALUES ('22222222-2222-4222-8222-222222222222', 'in_work');" \
+    psql_db "$url" -c "SELECT set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false); SELECT set_config('request.jwt.claims', '{\"sub\":\"11111111-1111-4111-8111-111111111111\"}', false); INSERT INTO public.equipment (nomenclature_id, status, location_id) VALUES ('22222222-2222-4222-8222-222222222222', 'in_work', '55555555-5555-4555-8555-555555555551');" \
       >"$tmp/$i.out" 2>"$tmp/$i.err" &
     pids+=("$!")
   done
@@ -76,6 +76,10 @@ run_rules() {
   psql_db "$url" -f "$ROOT/supabase/tests/08_journal_stage4.sql"
   echo "== verifications and excel"
   psql_db "$url" -f "$ROOT/supabase/tests/09_stage6.sql"
+  echo "== users admin rules"
+  psql_db "$url" -f "$ROOT/supabase/tests/10_stage7.sql"
+  echo "== owner prefix and places"
+  psql_db "$url" -f "$ROOT/supabase/tests/11_owner_rules.sql"
   rm -rf "$tmp"
 }
 

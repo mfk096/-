@@ -223,7 +223,6 @@ export function validateLocations(
     const responsible = cellText(record.cells.responsible_name)
     if (!name) errors.push('Не заполнено название.')
     if (name.includes('→')) errors.push('В названии нельзя использовать знак «→».')
-    if (!kind) errors.push('Не заполнен вид места.')
     const fullPath = parent ? `${parent}${pathSeparator}${name}` : name
     if (responsible) {
       const count = catalog.activeEmployees.get(responsible.toLowerCase()) ?? 0
@@ -326,7 +325,8 @@ export function validateEquipment(
           : 'Не заполнен статус.',
       )
     }
-    if (location) {
+    if (!location) errors.push('Не заполнено место установки.')
+    else {
       if (catalog.archivedLocationPaths.has(location) && !catalog.locationPaths.has(location)) {
         errors.push('Архивное место нельзя назначить.')
       } else if (!catalog.locationPaths.has(location)) {

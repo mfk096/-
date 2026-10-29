@@ -145,7 +145,7 @@ export function VerificationsPage() {
         <Button
           type="button"
           variant="outline"
-          className="h-11"
+          className="h-11 w-full sm:w-auto"
           disabled={!queue.data}
           onClick={exportQueue}
         >

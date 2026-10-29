@@ -2,6 +2,16 @@
 
 Оболочка Capacitor для телефона кладовщика. Имя на экране — «Инвентаризация», пакет `ru.factory.inventory`. Веб-сборка лежит внутри APK. Адрес Supabase в пакет не зашит навсегда: его вводят на телефоне.
 
+## Скачать APK на телефон
+
+После зелёного прогона workflow **Android APK** на ветке `main` файл лежит в релизе и открывается без входа в GitHub:
+
+[https://github.com/mfk096/-/releases/download/latest-apk/app-debug.apk](https://github.com/mfk096/-/releases/download/latest-apk/app-debug.apk)
+
+Тот же файл обновляется при каждом таком прогоне. Первый успешный прогон на `main` дополнительно создаёт релиз `v1.0.0`, его APK дальше не перезаписывается.
+
+В этой сборке адрес тестового сервера по умолчанию — `https://wehdetsnxqbfjrfhopzh.supabase.co`. Anon key уже внутри, если в репозитории задана переменная `VITE_SUPABASE_ANON_KEY`. Иначе его один раз вводят в настройках подключения. Адрес можно сменить там же, APK пересобирать не нужно.
+
 ## Скачать APK из GitHub Actions
 
 1. Откройте репозиторий на GitHub → Actions → workflow **Android APK**.
@@ -12,12 +22,12 @@
 
 Секреты подписи, если release нужен:
 
-| Секрет | Что это |
-| --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | Файл `.jks` или `.keystore`, закодированный в base64 |
-| `ANDROID_KEYSTORE_PASSWORD` | Пароль хранилища |
-| `ANDROID_KEY_ALIAS` | Alias ключа |
-| `ANDROID_KEY_PASSWORD` | Пароль ключа |
+| Секрет                      | Что это                                              |
+| --------------------------- | ---------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | Файл `.jks` или `.keystore`, закодированный в base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | Пароль хранилища                                     |
+| `ANDROID_KEY_ALIAS`         | Alias ключа                                          |
+| `ANDROID_KEY_PASSWORD`      | Пароль ключа                                         |
 
 Keystore в git не кладётся.
 

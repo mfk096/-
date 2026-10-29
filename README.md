@@ -79,9 +79,9 @@
 | 4. Перемещения и статусы | Сделан. Журнал `/history`, массовые операции в списке единиц, лента на карточке, сводка на главной. Новая миграция в репозитории, на боевой проект не применялась |
 | 5. QR, сканер, печать этикеток и Android | Сделан. QR содержит только код единицы. Этикетки, сканер, оболочка Capacitor и workflow debug APK. Новых миграций нет, боевой проект не менялся |
 | 6. Поверки и Excel | Сделан. График `/verifications`, журнал на карточке, счётчики на главной, импорт и экспорт Excel. Новые миграции в репозитории, на боевой проект не применялись |
-| 7. Релиз 1.0: тестовый хостинг и выдача APK | Не начат. Бесплатный хостинг веб-версии и APK, чтобы владелец мог проверить |
+| 7. Релиз 1.0: тестовый хостинг и выдача APK | Сделан в репозитории. Сайт и APK появятся после ручных шагов из [отчёта](docs/stages/stage-07-report.md): переменные Actions, Pages и публикация функции пользователей |
 
-Отчёт этапа 1: [docs/stages/stage-01-report.md](docs/stages/stage-01-report.md). Отчёт этапа 2: [docs/stages/stage-02-report.md](docs/stages/stage-02-report.md). Отчёт этапа 3: [docs/stages/stage-03-report.md](docs/stages/stage-03-report.md). Отчёт этапа 4: [docs/stages/stage-04-report.md](docs/stages/stage-04-report.md). Отчёт этапа 5: [docs/stages/stage-05-report.md](docs/stages/stage-05-report.md). Отчёт этапа 6: [docs/stages/stage-06-report.md](docs/stages/stage-06-report.md). Формат Excel: [docs/excel-format.md](docs/excel-format.md). Как поставить Android: [docs/android.md](docs/android.md).
+Отчёт этапа 1: [docs/stages/stage-01-report.md](docs/stages/stage-01-report.md). Отчёт этапа 2: [docs/stages/stage-02-report.md](docs/stages/stage-02-report.md). Отчёт этапа 3: [docs/stages/stage-03-report.md](docs/stages/stage-03-report.md). Отчёт этапа 4: [docs/stages/stage-04-report.md](docs/stages/stage-04-report.md). Отчёт этапа 5: [docs/stages/stage-05-report.md](docs/stages/stage-05-report.md). Отчёт этапа 6: [docs/stages/stage-06-report.md](docs/stages/stage-06-report.md). Отчёт этапа 7: [docs/stages/stage-07-report.md](docs/stages/stage-07-report.md). Формат Excel: [docs/excel-format.md](docs/excel-format.md). Как поставить Android: [docs/android.md](docs/android.md). Инструкция владельцу и тестировщику: [docs/user-guide.md](docs/user-guide.md). Чек-лист: [docs/test-checklist.md](docs/test-checklist.md).
 
 ## После 1.0 (бэклог)
 
@@ -90,6 +90,14 @@
 - **Этап 8. Переезд на сервер завода.** Self-hosted Supabase и перенос данных. Только по отдельному распоряжению владельца.
 - **Документы при перемещении на сотрудника.** Автоматически готовить акт приёма-передачи и служебную записку, когда оборудование перемещают на сотрудника. Печать и PDF по шаблонам завода, данные берутся из журнала перемещений. Для вёрстки нужны образцы этих документов от владельца.
 - **Правки по итогам тестирования.** Доработки, которые появятся после проверки релиза 1.0.
+
+## Тестовый сайт и APK
+
+Веб-версия рассчитана на адрес [https://mfk096.github.io/-/](https://mfk096.github.io/-/). Её публикует workflow **Deploy GitHub Pages** после push в `main`. Пока владелец не включит Pages и не задаст переменные, по этому адресу сайта нет. Точные шаги — в [отчёте этапа 7](docs/stages/stage-07-report.md).
+
+Debug APK для телефона, без входа в Actions: [app-debug.apk](https://github.com/mfk096/-/releases/download/latest-apk/app-debug.apk) (релиз `latest-apk`, появляется после первого зелёного прогона Android на `main`). В сборке по умолчанию адрес тестового Supabase `https://wehdetsnxqbfjrfhopzh.supabase.co`. Anon key попадает в APK, только если задана переменная `VITE_SUPABASE_ANON_KEY`. Адрес можно сменить в приложении.
+
+QR на этикетке ведёт на карточку на тестовом сайте. Свой адрес задаётся `VITE_PUBLIC_APP_URL`.
 
 ## Локальный запуск
 
@@ -157,6 +165,8 @@ cd android && ./gradlew assembleDebug
 14. `supabase/migrations/20261029121300_verification_queue.sql` — очередь поверок, журнал и сводка
 15. `supabase/migrations/20261029121400_verification_certificates.sql` — приватный бакет свидетельств и политики `storage.objects`
 16. `supabase/migrations/20261029121500_excel_import.sql` — атомарный импорт номенклатуры, мест, сотрудников и единиц
+17. `supabase/migrations/20261029121600_profiles_admin.sql` — email в профиле, не больше 10 активных, нельзя снять последнего администратора и отключить себя
+18. `supabase/migrations/20261029121700_prefix_places_labels.sql` — смена префикса с переписью кодов и историей старых кодов, место обязательно для новых и изменяемых единиц, вставка уровня над местом
 
 В облаке держат тестовые данные. Реальные данные завода появляются после переезда на self-hosted Supabase, см. [docs/decisions.md](docs/decisions.md).
 

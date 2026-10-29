@@ -60,7 +60,6 @@ function TreeLevel({
                     >
                       {node.name}
                     </span>
-                    <span className="text-xs text-muted-foreground">{node.kind}</span>
                     {node.is_archived ? (
                       <span className="text-xs text-muted-foreground">архив</span>
                     ) : null}

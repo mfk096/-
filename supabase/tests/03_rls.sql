@@ -40,8 +40,9 @@ BEGIN
       NULL;
   END;
   BEGIN
-    INSERT INTO public.equipment (nomenclature_id)
-    SELECT id FROM public.nomenclature WHERE code_prefix = 'FIX';
+    INSERT INTO public.equipment (nomenclature_id, location_id)
+    SELECT id, '55555555-5555-4555-8555-555555555551'::uuid
+    FROM public.nomenclature WHERE code_prefix = 'FIX';
     RAISE EXCEPTION 'FAIL: зритель создал единицу';
   EXCEPTION
     WHEN insufficient_privilege THEN
@@ -148,8 +149,8 @@ BEGIN
       NULL;
   END;
 
-  INSERT INTO public.equipment (nomenclature_id, code, serial_number, status)
-  SELECT id, 'NOPE-1', 'editor-serial', 'reserve'
+  INSERT INTO public.equipment (nomenclature_id, code, serial_number, status, location_id)
+  SELECT id, 'NOPE-1', 'editor-serial', 'reserve', '55555555-5555-4555-8555-555555555551'::uuid
   FROM public.nomenclature
   WHERE code_prefix = 'FIX'
   RETURNING id, code INTO v_eq, v_code;

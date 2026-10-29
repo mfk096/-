@@ -22,7 +22,7 @@ export function AppLayout() {
       <div className="no-print sticky top-0 hidden h-svh w-64 shrink-0 md:block">
         <SidebarNav />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <header className="no-print sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b bg-background/95 px-3 backdrop-blur md:px-6">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{current?.label ?? 'Инвентаризация'}</p>

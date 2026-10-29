@@ -102,8 +102,11 @@ BEGIN
     RAISE EXCEPTION 'FAIL: счётчик не переехал вместе с префиксом';
   END IF;
 
-  INSERT INTO public.equipment (nomenclature_id, code, status)
-  VALUES (v_nom, 'HACK-001', 'in_work')
+  INSERT INTO public.locations (id, name, kind) VALUES (v_loc_a, 'Стенд А', 'участок');
+  INSERT INTO public.locations (id, name) VALUES ('55555555-5555-4555-8555-555555555553', 'Стенд В');
+
+  INSERT INTO public.equipment (nomenclature_id, code, status, location_id)
+  VALUES (v_nom, 'HACK-001', 'in_work', v_loc_a)
   RETURNING id, code INTO v_eq, v_code;
 
   IF v_code <> 'TMP2-001' THEN
@@ -112,13 +115,27 @@ BEGIN
 
   BEGIN
     UPDATE public.nomenclature SET code_prefix = 'TMP3' WHERE id = v_nom;
-    RAISE EXCEPTION 'FAIL: префикс изменён после появления единицы';
+    RAISE EXCEPTION 'FAIL: префикс с единицами сменился в обход функции';
   EXCEPTION
     WHEN OTHERS THEN
-      IF SQLERRM NOT ILIKE '%Префикс нельзя изменить%' THEN
+      IF SQLERRM NOT ILIKE '%rename_nomenclature_prefix%' THEN
         RAISE;
       END IF;
   END;
+
+  PERFORM public.rename_nomenclature_prefix(v_nom, 'TMP3');
+  IF (SELECT code FROM public.equipment WHERE id = v_eq) <> 'TMP3-001' THEN
+    RAISE EXCEPTION 'FAIL: код единицы не сменил префикс';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.equipment_former_codes
+    WHERE code = 'TMP2-001' AND equipment_id = v_eq
+  ) THEN
+    RAISE EXCEPTION 'FAIL: старый код не сохранён';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.code_counters WHERE prefix = 'TMP3' AND last_number = 1) THEN
+    RAISE EXCEPTION 'FAIL: счётчик не переехал на TMP3';
+  END IF;
 
   BEGIN
     UPDATE public.equipment SET code = 'TMP2-999' WHERE id = v_eq;
@@ -132,11 +149,11 @@ BEGIN
 
   INSERT INTO public.nomenclature (code_prefix, name) VALUES ('SEQ', 'Последовательная');
   SELECT id INTO v_nom FROM public.nomenclature WHERE code_prefix = 'SEQ';
-  INSERT INTO public.equipment (nomenclature_id, status) VALUES (v_nom, 'in_work');
-  INSERT INTO public.equipment (nomenclature_id, status) VALUES (v_nom, 'reserve');
-  INSERT INTO public.equipment (nomenclature_id, status) VALUES (v_nom, 'in_repair');
+  INSERT INTO public.equipment (nomenclature_id, status, location_id) VALUES (v_nom, 'in_work', v_loc_a);
+  INSERT INTO public.equipment (nomenclature_id, status, location_id) VALUES (v_nom, 'reserve', v_loc_a);
+  INSERT INTO public.equipment (nomenclature_id, status, location_id) VALUES (v_nom, 'in_repair', v_loc_a);
   UPDATE public.equipment SET status = 'written_off' WHERE code = 'SEQ-001';
-  INSERT INTO public.equipment (nomenclature_id, status) VALUES (v_nom, 'in_work');
+  INSERT INTO public.equipment (nomenclature_id, status, location_id) VALUES (v_nom, 'in_work', v_loc_a);
 
   IF (
     SELECT array_agg(code ORDER BY code)
@@ -177,10 +194,10 @@ BEGIN
 
   INSERT INTO public.nomenclature (code_prefix, name) VALUES ('AA', 'Первая');
   INSERT INTO public.nomenclature (code_prefix, name) VALUES ('BB', 'Вторая');
-  INSERT INTO public.equipment (nomenclature_id)
-  SELECT id FROM public.nomenclature WHERE code_prefix = 'AA';
-  INSERT INTO public.equipment (nomenclature_id)
-  SELECT id FROM public.nomenclature WHERE code_prefix = 'BB';
+  INSERT INTO public.equipment (nomenclature_id, location_id)
+  SELECT id, v_loc_a FROM public.nomenclature WHERE code_prefix = 'AA';
+  INSERT INTO public.equipment (nomenclature_id, location_id)
+  SELECT id, v_loc_a FROM public.nomenclature WHERE code_prefix = 'BB';
   IF NOT EXISTS (SELECT 1 FROM public.equipment WHERE code = 'AA-001')
     OR NOT EXISTS (SELECT 1 FROM public.equipment WHERE code = 'BB-001') THEN
     RAISE EXCEPTION 'FAIL: счётчики префиксов не независимы';
@@ -188,10 +205,10 @@ BEGIN
 
   INSERT INTO public.nomenclature (code_prefix, name) VALUES ('PAD', 'Добивка');
   UPDATE public.code_counters SET last_number = 998 WHERE prefix = 'PAD';
-  INSERT INTO public.equipment (nomenclature_id)
-  SELECT id FROM public.nomenclature WHERE code_prefix = 'PAD';
-  INSERT INTO public.equipment (nomenclature_id)
-  SELECT id FROM public.nomenclature WHERE code_prefix = 'PAD';
+  INSERT INTO public.equipment (nomenclature_id, location_id)
+  SELECT id, v_loc_a FROM public.nomenclature WHERE code_prefix = 'PAD';
+  INSERT INTO public.equipment (nomenclature_id, location_id)
+  SELECT id, v_loc_a FROM public.nomenclature WHERE code_prefix = 'PAD';
   IF NOT EXISTS (SELECT 1 FROM public.equipment WHERE code = 'PAD-999')
     OR NOT EXISTS (SELECT 1 FROM public.equipment WHERE code = 'PAD-1000') THEN
     RAISE EXCEPTION 'FAIL: формат номера вокруг 1000';
@@ -201,8 +218,9 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', '', false);
   PERFORM set_config('request.jwt.claims', '', false);
   BEGIN
-    INSERT INTO public.equipment (nomenclature_id)
-    SELECT id FROM public.nomenclature WHERE code_prefix = 'ROLL';
+    INSERT INTO public.equipment (nomenclature_id, location_id)
+    SELECT id, '55555555-5555-4555-8555-555555555553'::uuid
+    FROM public.nomenclature WHERE code_prefix = 'ROLL';
     RAISE EXCEPTION 'FAIL: единица без пользователя создана';
   EXCEPTION
     WHEN OTHERS THEN
@@ -217,8 +235,9 @@ BEGIN
     json_build_object('sub', v_admin::text, 'role', 'authenticated')::text,
     false
   );
-  INSERT INTO public.equipment (nomenclature_id)
-  SELECT id FROM public.nomenclature WHERE code_prefix = 'ROLL';
+  INSERT INTO public.equipment (nomenclature_id, location_id)
+  SELECT id, '55555555-5555-4555-8555-555555555553'::uuid
+  FROM public.nomenclature WHERE code_prefix = 'ROLL';
   IF (SELECT last_number FROM public.code_counters WHERE prefix = 'ROLL') <> 1
     OR NOT EXISTS (SELECT 1 FROM public.equipment WHERE code = 'ROLL-001') THEN
     RAISE EXCEPTION 'FAIL: неудачная вставка заняла номер';
@@ -228,8 +247,8 @@ BEGIN
   VALUES ('NOVF', 'Без поверки', false);
   SELECT id INTO v_nom FROM public.nomenclature WHERE code_prefix = 'NOVF';
   BEGIN
-    INSERT INTO public.equipment (nomenclature_id, last_verification_date)
-    VALUES (v_nom, date '2026-01-01');
+    INSERT INTO public.equipment (nomenclature_id, location_id, last_verification_date)
+    VALUES (v_nom, v_loc_a, date '2026-01-01');
     RAISE EXCEPTION 'FAIL: дату поверки приняли без флага';
   EXCEPTION
     WHEN OTHERS THEN
@@ -241,7 +260,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL: отказ в полях поверки занял номер';
   END IF;
 
-  INSERT INTO public.locations (id, name, kind) VALUES (v_loc_a, 'Стенд А', 'участок');
   INSERT INTO public.locations (id, name, kind, is_archived)
   VALUES (v_loc_b, 'Стенд Б', 'участок', true);
 
@@ -409,8 +427,8 @@ BEGIN
   VALUES ('VERF', 'С поверкой', true, 12)
   RETURNING id INTO v_nom;
 
-  INSERT INTO public.equipment (nomenclature_id, status)
-  VALUES (v_nom, 'in_work')
+  INSERT INTO public.equipment (nomenclature_id, status, location_id)
+  VALUES (v_nom, 'in_work', v_loc_a)
   RETURNING id INTO v_eq;
 
   INSERT INTO public.verifications (equipment_id, verified_at, result, next_due_at, certificate_number)

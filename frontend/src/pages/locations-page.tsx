@@ -14,7 +14,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { useEmployees, useLocations } from '@/hooks/use-catalogs'
 import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
-import { filterByName, kindOptions } from '@/lib/location-tree'
+import { filterByName } from '@/lib/location-tree'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -30,15 +30,16 @@ export function LocationsPage() {
   const [showArchived, setShowArchived] = useState(false)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState('завод')
   const [parentId, setParentId] = useState('')
+  const [aboveId, setAboveId] = useState('')
+  const [placement, setPlacement] = useState<'under' | 'above'>('under')
   const [responsibleId, setResponsibleId] = useState('')
 
   useEffect(() => {
     if (!parentFromQuery) return
     setCreating(true)
+    setPlacement('under')
     setParentId(parentFromQuery)
-    setKind('участок')
   }, [parentFromQuery])
 
   const archivedCount = (locations.data ?? []).filter((row) => row.is_archived).length
@@ -66,8 +67,9 @@ export function LocationsPage() {
   function closeCreate() {
     setCreating(false)
     setName('')
-    setKind('завод')
     setParentId('')
+    setAboveId('')
+    setPlacement('under')
     setResponsibleId('')
     setParams(
       (current) => {
@@ -85,10 +87,24 @@ export function LocationsPage() {
       if (!client) throw new Error('Supabase не настроен.')
       const trimmed = name.trim()
       if (!trimmed) throw new Error('Укажите название.')
-      if (!kind.trim()) throw new Error('Выберите тип места.')
+      if (placement === 'above') {
+        if (!aboveId) throw new Error('Выберите место, над которым вставить новый уровень.')
+        const { data: createdId, error: aboveError } = await client.rpc('insert_location_above', {
+          anchor_id: aboveId,
+          place_name: trimmed,
+        })
+        if (aboveError) throw aboveError
+        if (responsibleId && createdId) {
+          const { error } = await client
+            .from('locations')
+            .update({ responsible_employee_id: responsibleId })
+            .eq('id', createdId)
+          if (error) throw error
+        }
+        return
+      }
       const { error } = await client.from('locations').insert({
         name: trimmed,
-        kind,
         parent_id: parentId || null,
         responsible_employee_id: responsibleId || null,
       })
@@ -184,8 +200,9 @@ export function LocationsPage() {
                 className="h-11 shrink-0"
                 onClick={() => {
                   setName('')
-                  setKind('завод')
                   setParentId('')
+                  setAboveId('')
+                  setPlacement('under')
                   setResponsibleId('')
                   setCreating(true)
                   setParams(
@@ -215,8 +232,8 @@ export function LocationsPage() {
               <CardHeader>
                 <CardTitle>Новое место</CardTitle>
                 <CardDescription>
-                  Родитель может быть пустым — тогда место станет корнем. Тип выбирается из списка,
-                  в базе это подпись уровня.
+                  Новое место можно поставить внутрь родителя или вставить уровнем выше уже
+                  существующего узла. Отдельного типа уровня нет.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -236,33 +253,48 @@ export function LocationsPage() {
                       onChange={(event) => setName(event.target.value)}
                     />
                   </Field>
-                  <Field label="Тип" htmlFor="location-kind">
+                  <Field label="Как поставить" htmlFor="location-placement">
                     <NativeSelect
-                      id="location-kind"
-                      value={kind}
-                      onChange={(event) => setKind(event.target.value)}
+                      id="location-placement"
+                      value={placement}
+                      onChange={(event) =>
+                        setPlacement(event.target.value === 'above' ? 'above' : 'under')
+                      }
                     >
-                      {kindOptions(kind).map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
+                      <option value="under">Внутрь родителя</option>
+                      <option value="above">Над выбранным местом</option>
                     </NativeSelect>
                   </Field>
-                  <Field
-                    label="Родитель"
-                    htmlFor="location-parent"
-                    hint="Пустой родитель — корень дерева."
-                  >
-                    <LocationPicker
-                      id="location-parent"
-                      locations={parentChoices}
-                      value={parentId}
-                      onChange={setParentId}
-                      allowEmpty
-                      emptyLabel="Корень, без родителя"
-                    />
-                  </Field>
+                  {placement === 'above' ? (
+                    <Field
+                      label="Над каким местом"
+                      htmlFor="location-above"
+                      hint="Новый уровень встанет между этим местом и его текущим родителем."
+                    >
+                      <LocationPicker
+                        id="location-above"
+                        locations={parentChoices}
+                        value={aboveId}
+                        onChange={setAboveId}
+                        emptyLabel="Выберите место"
+                      />
+                    </Field>
+                  ) : (
+                    <Field
+                      label="Родитель"
+                      htmlFor="location-parent"
+                      hint="Пустой родитель — корень дерева."
+                    >
+                      <LocationPicker
+                        id="location-parent"
+                        locations={parentChoices}
+                        value={parentId}
+                        onChange={setParentId}
+                        allowEmpty
+                        emptyLabel="Корень, без родителя"
+                      />
+                    </Field>
+                  )}
                   <Field
                     label="Ответственный"
                     htmlFor="location-responsible"
