@@ -7,3 +7,4 @@
 - [Отчёт этапа 3](stage-03-report.md)
 - [Отчёт этапа 4](stage-04-report.md)
 - [Отчёт этапа 5](stage-05-report.md)
+- [Отчёт этапа 6](stage-06-report.md)

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { saveEquipmentWorkbook } from '@/lib/excel/save'
 import { Field } from '@/components/field'
 import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
@@ -421,41 +422,73 @@ export function UnitsPage() {
       ) : null}
 
       {supabase ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setFilter('q', event.target.value.trim())
-            }}
-            placeholder="Код или серийный номер"
-            aria-label="Поиск по коду или серийному номеру"
-            className="h-11"
-          />
-          <NativeSelect
-            aria-label="Фильтр по номенклатуре"
-            value={nomenclatureId}
-            onChange={(event) => setFilter('nomenclature', event.target.value)}
-          >
-            <option value="">Вся номенклатура</option>
-            {(nomenclature.data ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.code_prefix} — {item.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <NativeSelect
-            aria-label="Фильтр по статусу"
-            value={status}
-            onChange={(event) => setFilter('status', event.target.value)}
-          >
-            <option value="">Все статусы</option>
-            {equipmentStatuses.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </NativeSelect>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full sm:w-auto"
+              disabled={!list.data}
+              onClick={() => {
+                const count = visibleRows.length
+                void saveEquipmentWorkbook(
+                  visibleRows.map((row) => ({
+                    code: row.code,
+                    code_prefix: row.code_prefix,
+                    nomenclature_name: row.nomenclature_name,
+                    serial_number: row.serial_number,
+                    inventory_number: row.inventory_number,
+                    status: row.status,
+                    location_path: row.location_path,
+                    last_verification_date: row.last_verification_date,
+                    next_verification_date: row.next_verification_date,
+                    notes: row.notes,
+                  })),
+                  'единицы.xlsx',
+                )
+                  .then(() => toast.success(`В файле ${count} строк, с текущими фильтрами`))
+                  .catch((error) => toast.error(errorText(error, 'Не удалось выгрузить единицы')))
+              }}
+            >
+              Скачать Excel
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setFilter('q', event.target.value.trim())
+              }}
+              placeholder="Код или серийный номер"
+              aria-label="Поиск по коду или серийному номеру"
+              className="h-11"
+            />
+            <NativeSelect
+              aria-label="Фильтр по номенклатуре"
+              value={nomenclatureId}
+              onChange={(event) => setFilter('nomenclature', event.target.value)}
+            >
+              <option value="">Вся номенклатура</option>
+              {(nomenclature.data ?? []).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.code_prefix} — {item.name}
+                </option>
+              ))}
+            </NativeSelect>
+            <NativeSelect
+              aria-label="Фильтр по статусу"
+              value={status}
+              onChange={(event) => setFilter('status', event.target.value)}
+            >
+              <option value="">Все статусы</option>
+              {equipmentStatuses.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
         </div>
       ) : null}
 

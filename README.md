@@ -78,10 +78,10 @@
 | 3. Места установки и ответственные | Сделан. Дерево мест, сотрудники, выбор места из дерева. Новая миграция в репозитории, на боевой проект не применялась |
 | 4. Перемещения и статусы | Сделан. Журнал `/history`, массовые операции в списке единиц, лента на карточке, сводка на главной. Новая миграция в репозитории, на боевой проект не применялась |
 | 5. QR, сканер, печать этикеток и Android | Сделан. QR содержит только код единицы. Этикетки, сканер, оболочка Capacitor и workflow debug APK. Новых миграций нет, боевой проект не менялся |
-| 6. Поверки и Excel | Не начат |
+| 6. Поверки и Excel | Сделан. График `/verifications`, журнал на карточке, счётчики на главной, импорт и экспорт Excel. Новые миграции в репозитории, на боевой проект не применялись |
 | 7. Релиз 1.0: тестовый хостинг и выдача APK | Не начат. Бесплатный хостинг веб-версии и APK, чтобы владелец мог проверить |
 
-Отчёт этапа 1: [docs/stages/stage-01-report.md](docs/stages/stage-01-report.md). Отчёт этапа 2: [docs/stages/stage-02-report.md](docs/stages/stage-02-report.md). Отчёт этапа 3: [docs/stages/stage-03-report.md](docs/stages/stage-03-report.md). Отчёт этапа 4: [docs/stages/stage-04-report.md](docs/stages/stage-04-report.md). Отчёт этапа 5: [docs/stages/stage-05-report.md](docs/stages/stage-05-report.md). Как поставить Android: [docs/android.md](docs/android.md).
+Отчёт этапа 1: [docs/stages/stage-01-report.md](docs/stages/stage-01-report.md). Отчёт этапа 2: [docs/stages/stage-02-report.md](docs/stages/stage-02-report.md). Отчёт этапа 3: [docs/stages/stage-03-report.md](docs/stages/stage-03-report.md). Отчёт этапа 4: [docs/stages/stage-04-report.md](docs/stages/stage-04-report.md). Отчёт этапа 5: [docs/stages/stage-05-report.md](docs/stages/stage-05-report.md). Отчёт этапа 6: [docs/stages/stage-06-report.md](docs/stages/stage-06-report.md). Формат Excel: [docs/excel-format.md](docs/excel-format.md). Как поставить Android: [docs/android.md](docs/android.md).
 
 ## После 1.0 (бэклог)
 
@@ -154,6 +154,9 @@ cd android && ./gradlew assembleDebug
 11. `supabase/migrations/20261029121000_locations_and_responsibles.sql`
 12. `supabase/migrations/20261029121100_revoke_anon_functions.sql`
 13. `supabase/migrations/20261029121200_journal_and_bulk.sql`
+14. `supabase/migrations/20261029121300_verification_queue.sql` — очередь поверок, журнал и сводка
+15. `supabase/migrations/20261029121400_verification_certificates.sql` — приватный бакет свидетельств и политики `storage.objects`
+16. `supabase/migrations/20261029121500_excel_import.sql` — атомарный импорт номенклатуры, мест, сотрудников и единиц
 
 В облаке держат тестовые данные. Реальные данные завода появляются после переезда на self-hosted Supabase, см. [docs/decisions.md](docs/decisions.md).
 
@@ -165,7 +168,7 @@ supabase db reset
 
 Команда применяет миграции и затем `supabase/seed.sql`. Seed только для разработки: завод, цеха, участки, Kyocera с префиксом `KYOC`, весы с поверкой. Учётные записи `demo.admin@plant.local`, `demo.editor@plant.local`, `demo.viewer@plant.local`, пароль `demo-local-password`.
 
-Без Docker — пустой Postgres 15 или новее. На Supabase схема `auth` уже есть. Для голого Postgres сначала заглушка `supabase/tests/00_auth_stub.sql` (на боевой проект её не применяют):
+Без Docker — пустой Postgres 15 или новее. На Supabase схема `auth` уже есть, схема `storage` тоже. Для голого Postgres сначала заглушка `supabase/tests/00_auth_stub.sql` (на боевой проект её не применяют). Она создаёт роли, `auth.uid()` и минимальные `storage.buckets` / `storage.objects`, чтобы миграция бакета проверялась локально:
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/00_auth_stub.sql

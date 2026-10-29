@@ -64,15 +64,15 @@ export const navItems: NavItem[] = [
     to: '/verifications',
     label: 'Поверки',
     description: 'График и журнал только для номенклатуры с флагом «Требует поверки».',
-    stage: 'Этап 6',
+    stage: 'Доступно',
     icon: ClipboardCheck,
   },
   {
     to: '/import-export',
     label: 'Импорт/экспорт',
     description:
-      'Загрузка номенклатуры, мест и единиц из Excel с проверкой и выгрузка текущих списков.',
-    stage: 'Этап 6',
+      'Загрузка номенклатуры, мест, сотрудников и единиц из Excel с проверкой и выгрузка списков.',
+    stage: 'Доступно',
     icon: FileSpreadsheet,
   },
   {
