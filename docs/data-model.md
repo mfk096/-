@@ -169,7 +169,7 @@
 | `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles` |
 | никто из клиента | писать в `code_counters`; удалять единицу и строки истории |
 
-`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_location` и `location_responsible_source` у `authenticated` остаются. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции этапа 3 не `security definer` и не выданы `anon`.
+`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_location`, `location_full_path`, `effective_responsible_employee_id` и `location_responsible_source` у `authenticated` остаются. У `anon` нет `EXECUTE` ни на одну функцию `public`, кроме объектов расширений: Supabase выдаёт это право роли напрямую, и `REVOKE` у `PUBLIC` его не снимает. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции не `security definer`. Для роли `postgres` в схеме `public` умолчание больше не выдаёт `EXECUTE` роли `anon`.
 
 ## Связи
 

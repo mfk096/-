@@ -70,6 +70,8 @@ run_rules() {
   psql_db "$url" -f "$ROOT/supabase/tests/05_function_locks.sql"
   echo "== locations and responsibles"
   psql_db "$url" -f "$ROOT/supabase/tests/06_locations_stage3.sql"
+  echo "== anon function revoke"
+  psql_db "$url" -f "$ROOT/supabase/tests/07_anon_function_revoke.sql"
   rm -rf "$tmp"
 }
 
