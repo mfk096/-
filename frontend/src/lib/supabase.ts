@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 const PLACEHOLDER_URL = 'https://your-project.supabase.co'
 const PLACEHOLDER_KEY = 'your-anon-key'
@@ -37,11 +38,11 @@ const supabaseUrl = readEnv(import.meta.env.VITE_SUPABASE_URL)
 const supabaseAnonKey = readEnv(import.meta.env.VITE_SUPABASE_ANON_KEY)
 
 let supabaseConfigMessage = describeConfig(supabaseUrl, supabaseAnonKey)
-let supabase: SupabaseClient | null = null
+let supabase: SupabaseClient<Database> | null = null
 
 if (!supabaseConfigMessage) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,

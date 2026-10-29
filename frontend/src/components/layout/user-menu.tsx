@@ -10,14 +10,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useAccess } from '@/hooks/use-profile'
+import { roleLabel } from '@/lib/labels'
 import { getUserDisplay } from '@/lib/user-label'
 import { useAuth } from '@/providers/auth-context'
 
 export function UserMenu() {
   const { user, signOut } = useAuth()
+  const access = useAccess()
   if (!user) return null
 
   const display = getUserDisplay(user)
+  const role = access.data?.is_active ? roleLabel(access.data.role) : null
 
   async function handleSignOut() {
     try {
@@ -53,6 +57,11 @@ export function UserMenu() {
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>
             <span className="block truncate">{display.title}</span>
+            {role ? (
+              <span className="block truncate text-xs font-normal text-muted-foreground">
+                {role}
+              </span>
+            ) : null}
             {display.email ? (
               <span className="block truncate text-xs font-normal text-muted-foreground">
                 {display.email}

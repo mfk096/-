@@ -5,8 +5,11 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { navItems } from '@/config/navigation'
 import { HomePage } from '@/pages/home-page'
 import { LoginPage } from '@/pages/login-page'
+import { NomenclaturePage } from '@/pages/nomenclature-page'
 import { ResetPasswordPage } from '@/pages/reset-password-page'
 import { StubPage } from '@/pages/stub-page'
+import { UnitPage } from '@/pages/unit-page'
+import { UnitsPage } from '@/pages/units-page'
 
 export default function App() {
   return (
@@ -18,8 +21,13 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="nomenclature" element={<NomenclaturePage />} />
+            <Route path="units" element={<UnitsPage />} />
+            <Route path="units/:code" element={<UnitPage />} />
             {navItems
-              .filter((item) => item.to !== '/')
+              .filter(
+                (item) => item.to !== '/' && item.to !== '/units' && item.to !== '/nomenclature',
+              )
               .map((item) => (
                 <Route
                   key={item.to}
