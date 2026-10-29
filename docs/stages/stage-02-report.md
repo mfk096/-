@@ -2,6 +2,8 @@
 
 Номенклатура, единицы и выдача кодов базой. Миграции на боевой Supabase не применялись.
 
+Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-frontend-scaffold-eb31`).
+
 ## Сделано
 
 - Миграции `supabase/migrations/` по порядку имени: таблицы из модели, enum ролей и статусов, индексы, внешние ключи, `updated_at`.
