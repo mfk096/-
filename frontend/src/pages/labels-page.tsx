@@ -21,6 +21,7 @@ import {
   labelTemplates,
   type LabelContent,
 } from '@/lib/label-templates'
+import { publicAppUrl } from '@/lib/public-url'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 
 function codesFromLocation(params: URLSearchParams): string[] {
@@ -157,8 +158,7 @@ export function LabelsPage() {
       <header className="no-print">
         <h1 className="text-2xl font-semibold tracking-tight">Этикетки</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          В QR только код единицы, например KYOC-001. Адреса сервера в коде нет: этикетку не
-          придётся перепечатывать, когда сервер сменится.
+          QR открывает карточку на {publicAppUrl()}. Код единицы напечатан рядом с QR.
         </p>
       </header>
 

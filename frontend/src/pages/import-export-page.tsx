@@ -241,7 +241,7 @@ export function ImportExportPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
             disabled={busyExport !== null}
             onClick={() =>
               exportFile('nomenclature', async () => {
@@ -259,7 +259,7 @@ export function ImportExportPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
             disabled={busyExport !== null}
             onClick={() =>
               exportFile('locations', async () => {
@@ -286,7 +286,7 @@ export function ImportExportPage() {
                   locationsWorkbook(
                     places.map((place) => ({
                       name: place.name,
-                      kind: place.kind,
+                      kind: place.kind ?? '',
                       parent_path: parentPathFromFull(place.full_path, place.name),
                       full_path: place.full_path ?? place.name,
                       responsible_name: place.responsible_employee_id
@@ -305,7 +305,7 @@ export function ImportExportPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
             disabled={busyExport !== null}
             onClick={() =>
               exportFile('employees', async () => {
@@ -333,7 +333,7 @@ export function ImportExportPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
             disabled={busyExport !== null}
             onClick={() =>
               exportFile('verifications', async () => {
@@ -355,7 +355,7 @@ export function ImportExportPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
             disabled={busyExport !== null}
             onClick={() =>
               exportFile('journal', async () => {
@@ -456,7 +456,7 @@ export function ImportExportPage() {
                     id="import-file"
                     type="file"
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    className="h-11"
+                    className="h-11 w-full sm:w-auto"
                     onChange={(event) => {
                       const file = event.target.files?.[0]
                       if (file)

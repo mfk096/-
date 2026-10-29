@@ -34,6 +34,25 @@ export function errorText(error: unknown, fallback: string): string {
   if (message.includes('employees_profile_id')) {
     return 'Этот пользователь уже привязан к другому сотруднику.'
   }
+  if (message.includes('последнего администратора')) {
+    return 'Нельзя снять роль или отключить последнего администратора.'
+  }
+  if (message.includes('собственную учётную') || message.includes('собственную учетную')) {
+    return 'Нельзя отключить собственную учётную запись.'
+  }
+  if (message.includes('не больше 10') || message.includes('10 активных')) {
+    return 'Одновременно может быть не больше 10 активных пользователей.'
+  }
+  if (message.includes('собственную роль')) {
+    return 'Нельзя изменить собственную роль.'
+  }
+  if (
+    /edge function|functions\/v1|function not found|failed to send a request to the edge function/i.test(
+      message,
+    )
+  ) {
+    return 'Не удалось пригласить пользователя. Функция manage-users ещё не опубликована на сервере или нет сети.'
+  }
   if (
     /failed to fetch|networkerror|network request failed|load failed|the operation was aborted|aborterror|timeouterror|signal timed out/i.test(
       message,

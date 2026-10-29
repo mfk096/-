@@ -75,7 +75,8 @@ export function ScanPage() {
         return
       }
       await stopScanner()
-      navigate(`/units/${row.code}`)
+      const former = row.formerCode ? `?former=${encodeURIComponent(row.formerCode)}` : ''
+      navigate(`/units/${row.code}${former}`)
       return
     }
 
@@ -96,7 +97,11 @@ export function ScanPage() {
     batchRef.current = next
     setBatch(next)
     setHint(
-      row ? `Добавлено: ${row.code}` : `Единица с кодом ${code} не найдена. В пакет она не войдёт.`,
+      row
+        ? row.formerCode
+          ? `Этикетка устарела: добавлен новый код ${row.code}.`
+          : `Добавлено: ${row.code}`
+        : `Единица с кодом ${code} не найдена. В пакет она не войдёт.`,
     )
   }
 
@@ -179,8 +184,8 @@ export function ScanPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Сканер</h1>
         <p className="mt-2 text-muted-foreground">
-          Камера читает QR с кодом единицы. Сейчас используется {scannerImplementationLabel()}. Если
-          камера недоступна, код можно ввести вручную.
+          Камера читает ссылку с этикетки или код единицы. Сейчас используется{' '}
+          {scannerImplementationLabel()}. Если камера недоступна, код можно ввести вручную.
         </p>
       </header>
 
@@ -219,7 +224,7 @@ export function ScanPage() {
           </div>
           <div className="flex flex-col gap-3 bg-black/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-white">
             <p className="text-center text-sm">
-              Наведите камеру на QR. В коде только номер единицы.
+              Наведите камеру на QR. Подойдёт ссылка с этикетки или код вида KYOC-001.
             </p>
             <Button
               type="button"

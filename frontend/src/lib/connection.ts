@@ -4,6 +4,14 @@ const STORAGE_ANON_KEY = 'inventory.connection.anonKey'
 export const PLACEHOLDER_URL = 'https://your-project.supabase.co'
 export const PLACEHOLDER_KEY = 'your-anon-key'
 
+/** Облачный проект, на котором проверяют релиз 1.0. Ключ сюда не кладётся. */
+export const TEST_SUPABASE_URL = 'https://wehdetsnxqbfjrfhopzh.supabase.co'
+
+export function resolveSupabaseUrl(envUrl: string | undefined | null): string {
+  const trimmed = (envUrl ?? '').trim().replace(/\/+$/, '')
+  return trimmed || TEST_SUPABASE_URL
+}
+
 export type ConnectionSource = 'device' | 'env'
 
 export type ConnectionDraft = {
@@ -21,7 +29,7 @@ function readEnv(value: unknown): string {
 
 export function readEnvDefaults(): ConnectionDraft {
   return {
-    url: readEnv(import.meta.env.VITE_SUPABASE_URL),
+    url: resolveSupabaseUrl(readEnv(import.meta.env.VITE_SUPABASE_URL)),
     anonKey: readEnv(import.meta.env.VITE_SUPABASE_ANON_KEY),
   }
 }

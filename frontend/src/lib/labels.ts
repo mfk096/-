@@ -16,6 +16,12 @@ const statusLabels: Record<EquipmentStatus, string> = {
   reserve: 'Резерв',
 }
 
+export const appRoles: { value: AppRole; label: string }[] = [
+  { value: 'admin', label: 'Администратор' },
+  { value: 'editor', label: 'Редактор' },
+  { value: 'viewer', label: 'Просмотр' },
+]
+
 const roleLabels: Record<AppRole, string> = {
   admin: 'Администратор',
   editor: 'Редактор',

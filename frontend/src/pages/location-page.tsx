@@ -17,7 +17,6 @@ import { asCount, unitsLabel } from '@/lib/format'
 import {
   breadcrumb,
   descendantIds,
-  kindOptions,
   placeResponsibleNote,
   responsibleNote,
   subtreeIds,
@@ -32,12 +31,11 @@ export function LocationPage() {
   const employees = useEmployees(access.canEditCatalogs)
   const row = locations.data?.find((item) => item.id === id)
   const [name, setName] = useState<string | null>(null)
-  const [kind, setKind] = useState<string | null>(null)
   const [parentId, setParentId] = useState<string | null>(null)
+  const [aboveName, setAboveName] = useState('')
   const [responsibleId, setResponsibleId] = useState<string | null>(null)
 
   const nameValue = name ?? row?.name ?? ''
-  const kindValue = kind ?? row?.kind ?? 'участок'
   const parentValue = parentId === null ? (row?.parent_id ?? '') : parentId
   const responsibleValue =
     responsibleId === null ? (row?.responsible_employee_id ?? '') : responsibleId
@@ -79,7 +77,6 @@ export function LocationPage() {
 
   function resetDraft() {
     setName(null)
-    setKind(null)
     setParentId(null)
     setResponsibleId(null)
   }
@@ -95,7 +92,6 @@ export function LocationPage() {
       if (!client || !row) throw new Error('Место не найдено.')
       const trimmed = nameValue.trim()
       if (!trimmed) throw new Error('Укажите название.')
-      if (!kindValue.trim()) throw new Error('Выберите тип места.')
       const nextParent = parentValue || null
       if ((row.parent_id ?? null) !== nextParent) {
         const { error } = await client.rpc('move_location', {
@@ -108,7 +104,6 @@ export function LocationPage() {
         .from('locations')
         .update({
           name: trimmed,
-          kind: kindValue,
           responsible_employee_id: responsibleValue || null,
         })
         .eq('id', row.id)
@@ -120,6 +115,26 @@ export function LocationPage() {
       toast.success('Место сохранено')
     },
     onError: (error) => toast.error(errorText(error, 'Не удалось сохранить место')),
+  })
+
+  const insertAbove = useMutation({
+    mutationFn: async () => {
+      const client = supabase
+      if (!client || !row) throw new Error('Место не найдено.')
+      const trimmed = aboveName.trim()
+      if (!trimmed) throw new Error('Укажите название нового уровня.')
+      const { error } = await client.rpc('insert_location_above', {
+        anchor_id: row.id,
+        place_name: trimmed,
+      })
+      if (error) throw error
+    },
+    onSuccess: async () => {
+      setAboveName('')
+      await refresh()
+      toast.success('Уровень вставлен над этим местом')
+    },
+    onError: (error) => toast.error(errorText(error, 'Не удалось вставить уровень')),
   })
 
   const archive = useMutation({
@@ -198,9 +213,8 @@ export function LocationPage() {
             <CardHeader>
               <CardTitle>{row.full_path || row.name}</CardTitle>
               <CardDescription>
-                {row.kind}
-                {row.is_archived ? ' · архив' : ''} · {unitsLabel(asCount(row.equipment_count))} с
-                вложенными
+                {row.is_archived ? 'Архив · ' : ''}
+                {unitsLabel(asCount(row.equipment_count))} с вложенными
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm">
@@ -214,8 +228,9 @@ export function LocationPage() {
               <CardHeader>
                 <CardTitle>Правка</CardTitle>
                 <CardDescription>
-                  Переименование, тип, перенос к другому родителю и свой ответственный. Цикл база не
-                  примет.
+                  Переименование, перенос к другому родителю и свой ответственный. Цикл база не
+                  примет. Чтобы вставить уровень между этим местом и родителем, укажите название
+                  ниже.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -234,19 +249,6 @@ export function LocationPage() {
                       required
                       onChange={(event) => setName(event.target.value)}
                     />
-                  </Field>
-                  <Field label="Тип" htmlFor="place-kind">
-                    <NativeSelect
-                      id="place-kind"
-                      value={kindValue}
-                      onChange={(event) => setKind(event.target.value)}
-                    >
-                      {kindOptions(kindValue).map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </NativeSelect>
                   </Field>
                   <Field
                     label="Родитель"
@@ -324,6 +326,42 @@ export function LocationPage() {
                       перенесите их. База напишет, чего именно не хватает.
                     </p>
                   )}
+                </form>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {access.canEditCatalogs && row ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Вставить уровень выше</CardTitle>
+                <CardDescription>
+                  Новое место встанет между этим узлом и его родителем. Всё, что было внутри,
+                  останется здесь.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form
+                  className="flex flex-col gap-3 sm:flex-row sm:items-end"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    insertAbove.mutate()
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <Field label="Название нового уровня" htmlFor="place-above">
+                      <Input
+                        id="place-above"
+                        className="h-11"
+                        value={aboveName}
+                        required
+                        onChange={(event) => setAboveName(event.target.value)}
+                      />
+                    </Field>
+                  </div>
+                  <Button type="submit" className="h-11" disabled={insertAbove.isPending}>
+                    {insertAbove.isPending ? 'Вставляем…' : 'Вставить выше'}
+                  </Button>
                 </form>
               </CardContent>
             </Card>

@@ -158,8 +158,8 @@ BEGIN
       NULL;
   END;
 
-  INSERT INTO public.equipment (nomenclature_id, code, serial_number, status)
-  SELECT id, 'LEAK-1', 'lock-serial', 'in_work'
+  INSERT INTO public.equipment (nomenclature_id, code, serial_number, status, location_id)
+  SELECT id, 'LEAK-1', 'lock-serial', 'in_work', '55555555-5555-4555-8555-555555555553'::uuid
   FROM public.nomenclature
   WHERE code_prefix = 'FIX'
   RETURNING id, code INTO v_eq, v_code;

@@ -9,6 +9,9 @@ on:
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     name: Сборка APK
@@ -42,9 +45,19 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Адрес тестового Supabase и anon key — repository variables.
+      # База веб-сборки для APK остаётся «/»: оболочка открывает файлы с localhost.
       - name: Сборка веба
         working-directory: frontend
-        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_PUBLIC_APP_URL: ${{ vars.VITE_PUBLIC_APP_URL }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::warning::Переменные Supabase не заданы. В APK адрес тестового проекта уже подставлен, anon key нужно будет ввести в настройках подключения."
+          fi
+          npm run build
 
       - name: Capacitor sync
         working-directory: frontend
@@ -83,3 +96,32 @@ jobs:
           name: inventory-release-apk
           path: frontend/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
+
+      # С телефона артефакт Actions не скачать без входа. Pre-release latest-apk обновляется
+      # с main и при ручном запуске. Тег v1.0.0 создаётся один раз и дальше не перезаписывается.
+      - name: Выложить debug APK в GitHub Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="$(find frontend/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$APK"
+          cp "$APK" "${RUNNER_TEMP}/app-debug.apk"
+          NOTES=$'Debug APK 1.0.0 для проверки.\nАдрес тестового Supabase подставлен, если в репозитории заданы переменные VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY. Сменить адрес можно в приложении: «Настройки подключения».\nСкачать: https://github.com/mfk096/-/releases/download/latest-apk/app-debug.apk'
+          if gh release view latest-apk >/dev/null 2>&1; then
+            gh release upload latest-apk "${RUNNER_TEMP}/app-debug.apk" --clobber
+          else
+            gh release create latest-apk "${RUNNER_TEMP}/app-debug.apk" \
+              --prerelease \
+              --title "Последний debug APK" \
+              --notes "$NOTES" \
+              --target "$GITHUB_SHA"
+          fi
+          if [ "${GITHUB_REF}" = "refs/heads/main" ] && ! gh release view v1.0.0 >/dev/null 2>&1; then
+            gh release create v1.0.0 "${RUNNER_TEMP}/app-debug.apk" \
+              --title "Инвентаризация 1.0.0" \
+              --notes "$NOTES" \
+              --target "$GITHUB_SHA" \
+              --latest
+          fi

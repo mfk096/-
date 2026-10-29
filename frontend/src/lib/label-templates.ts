@@ -1,3 +1,5 @@
+import { unitPublicUrl } from '@/lib/public-url'
+
 export const labelPrintLimit = 200
 
 export type LabelTemplateId = 'thermal-58x40' | 'thermal-40x30' | 'a4-3x8'
@@ -126,11 +128,11 @@ export const labelSample: LabelContent = {
 }
 
 /**
- * Содержимое QR. Только код единицы, без адреса сервера:
- * этикетку нельзя перепечатать, когда сервер переедет.
+ * Содержимое QR — ссылка на карточку на публичном сайте.
+ * Код на этикетке по-прежнему напечатан текстом. Сканер понимает и ссылку, и голый код.
  */
 export function qrPayload(code: string): string {
-  return code.trim()
+  return unitPublicUrl(code)
 }
 
 export function labelDetailLines(item: LabelContent, settings: LabelFieldSettings): string[] {

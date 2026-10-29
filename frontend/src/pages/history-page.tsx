@@ -169,7 +169,7 @@ export function HistoryPage() {
         <Button
           type="button"
           variant="outline"
-          className="h-11"
+          className="h-11 w-full sm:w-auto"
           disabled={rangeError}
           onClick={() => {
             void loadFilteredJournal({

@@ -87,10 +87,11 @@ export function NomenclaturePage() {
 
   const editing =
     rows.find((row) => row.id === editingId) ?? list.data?.find((row) => row.id === editingId)
-  const prefixLocked = Boolean(editing && asCount(editing.equipment_count) > 0)
+  const [renameCodes, setRenameCodes] = useState<string[] | null>(null)
+  const [confirmPrefix, setConfirmPrefix] = useState(false)
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (confirmed: boolean) => {
       const client = supabase
       if (!client) throw new Error('Supabase не настроен.')
       const prefix = form.code_prefix.trim().toUpperCase()
@@ -107,8 +108,7 @@ export function NomenclaturePage() {
         }
         interval = parsed
       }
-      const payload = {
-        code_prefix: prefix,
+      const details = {
         name,
         manufacturer: emptyToNull(form.manufacturer),
         model: emptyToNull(form.model),
@@ -117,20 +117,52 @@ export function NomenclaturePage() {
         verification_interval_months: interval,
         notes: emptyToNull(form.notes),
       }
+      if (editingId && editing && prefix !== editing.code_prefix) {
+        if (asCount(editing.equipment_count) > 0 && !confirmed) {
+          throw new Error('Подтвердите смену префикса.')
+        }
+        const { data, error } = await client.rpc('rename_nomenclature_prefix', {
+          p_id: editingId,
+          p_prefix: prefix,
+        })
+        if (error) throw error
+        const { error: detailsError } = await client
+          .from('nomenclature')
+          .update(details)
+          .eq('id', editingId)
+        if (detailsError) throw detailsError
+        return {
+          renamed: true as const,
+          codes: (data ?? []).map((item) => item.new_code),
+        }
+      }
+      const payload = { code_prefix: prefix, ...details }
       if (editingId) {
         const { error } = await client.from('nomenclature').update(payload).eq('id', editingId)
         if (error) throw error
-        return
+        return { renamed: false as const, codes: [] as string[] }
       }
       const { error } = await client.from('nomenclature').insert(payload)
       if (error) throw error
+      return { renamed: false as const, codes: [] as string[] }
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['nomenclature'] })
-      toast.success(editingId ? 'Номенклатура сохранена' : 'Номенклатура создана')
-      setCreating(false)
-      setEditingId(null)
-      setForm(emptyForm)
+      await queryClient.invalidateQueries({ queryKey: ['equipment'] })
+      setConfirmPrefix(false)
+      setRenameCodes(result.renamed && result.codes.length > 0 ? result.codes : null)
+      toast.success(
+        result.renamed
+          ? 'Префикс и коды единиц обновлены. Этикетки нужно перепечатать.'
+          : editingId
+            ? 'Номенклатура сохранена'
+            : 'Номенклатура создана',
+      )
+      if (!result.renamed) {
+        setCreating(false)
+        setEditingId(null)
+        setForm(emptyForm)
+      }
     },
     onError: (error) => {
       toast.error(errorText(error, 'Не удалось сохранить номенклатуру'))
@@ -153,6 +185,8 @@ export function NomenclaturePage() {
     setCreating(false)
     setEditingId(null)
     setForm(emptyForm)
+    setConfirmPrefix(false)
+    setRenameCodes(null)
   }
 
   const showForm = creating || Boolean(editingId)
@@ -206,7 +240,8 @@ export function NomenclaturePage() {
           <CardHeader>
             <CardTitle>{editingId ? 'Редактирование' : 'Новая позиция'}</CardTitle>
             <CardDescription>
-              Префикс нельзя сменить после того, как по нему появились единицы.
+              Префикс можно сменить. Уже выданные коды получат новый префикс с теми же номерами,
+              включая списанные. Старые QR-этикетки после этого нужно перепечатать.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -214,7 +249,14 @@ export function NomenclaturePage() {
               className="grid gap-4 sm:grid-cols-2"
               onSubmit={(event) => {
                 event.preventDefault()
-                save.mutate()
+                const prefix = form.code_prefix.trim().toUpperCase()
+                const affected = editing ? asCount(editing.equipment_count) : 0
+                if (editing && prefix !== editing.code_prefix && affected > 0 && !confirmPrefix) {
+                  setRenameCodes(null)
+                  setConfirmPrefix(true)
+                  return
+                }
+                save.mutate(confirmPrefix || affected === 0)
               }}
             >
               <Field
@@ -225,7 +267,7 @@ export function NomenclaturePage() {
                 <Input
                   id="code_prefix"
                   value={form.code_prefix}
-                  disabled={prefixLocked || save.isPending}
+                  disabled={save.isPending}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
@@ -323,6 +365,33 @@ export function NomenclaturePage() {
                   />
                 </Field>
               </div>
+              {confirmPrefix && editing ? (
+                <div className="sm:col-span-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p>
+                    Сменится код у {asCount(editing.equipment_count)} ед., включая списанные. Номер
+                    сохранится: {editing.code_prefix}-001 станет{' '}
+                    {form.code_prefix.trim().toUpperCase()}-001. QR-этикетки этих единиц нужно
+                    перепечатать.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3 h-11"
+                    onClick={() => setConfirmPrefix(false)}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              ) : null}
+              {renameCodes && renameCodes.length > 0 ? (
+                <div className="sm:col-span-2">
+                  <Button asChild className="h-11 w-full sm:w-auto">
+                    <Link to={`/labels?codes=${encodeURIComponent(renameCodes.join(','))}`}>
+                      Печать новых этикеток
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
                 <Button type="submit" className="h-11" disabled={save.isPending}>
                   {save.isPending ? 'Сохранение…' : 'Сохранить'}

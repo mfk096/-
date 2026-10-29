@@ -17,6 +17,7 @@ import { useLocations } from '@/hooks/use-catalogs'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAccess } from '@/hooks/use-profile'
 import { changeEquipmentStatusBulk, moveEquipmentBulk } from '@/lib/equipment-bulk'
+import { findEquipmentByCode } from '@/lib/equipment-lookup'
 import { errorText } from '@/lib/errors'
 import { emptyToNull, unitsLabel } from '@/lib/format'
 import { equipmentBulkLimit } from '@/lib/journal'
@@ -123,6 +124,12 @@ export function UnitsPage() {
     )
   }
 
+  const formerHit = useQuery({
+    queryKey: ['equipment', 'former-search', debouncedSearch],
+    enabled: Boolean(supabase && /^[A-Za-z0-9]{2,8}-\d+$/.test(debouncedSearch.trim())),
+    queryFn: () => findEquipmentByCode(debouncedSearch.trim().toUpperCase()),
+  })
+
   const visibleRows = list.data ?? []
   const visibleIds = visibleRows.map((row) => row.id)
   const selectedIds = visibleIds.filter((id) => selected.has(id))
@@ -184,6 +191,8 @@ export function UnitsPage() {
       const client = supabase
       if (!client) throw new Error('Supabase не настроен.')
       if (!draft.nomenclatureId) throw new Error('Выберите номенклатуру.')
+      if (!draft.locationId) throw new Error('Укажите место установки.')
+      if (!draft.status) throw new Error('Укажите статус.')
       const payload = {
         nomenclature_id: draft.nomenclatureId,
         serial_number: emptyToNull(draft.serialNumber),
@@ -349,14 +358,17 @@ export function UnitsPage() {
                 />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Место" htmlFor="unit-location" hint="Поиск идёт по полному пути.">
+                <Field
+                  label="Место установки"
+                  htmlFor="unit-location"
+                  hint="Обязательное поле. Склад — это место в дереве, а не отдельный статус."
+                >
                   <LocationPicker
                     id="unit-location"
                     locations={locationChoices}
                     value={draft.locationId}
                     onChange={(locationId) => setDraft((current) => ({ ...current, locationId }))}
-                    allowEmpty
-                    emptyLabel="Не назначено"
+                    emptyLabel="Выберите место"
                   />
                 </Field>
               </div>
@@ -497,6 +509,32 @@ export function UnitsPage() {
         <p className="text-sm text-destructive" role="alert">
           {errorText(list.error, 'Не удалось загрузить единицы')}
         </p>
+      ) : null}
+
+      {formerHit.data?.formerCode ? (
+        <div
+          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          role="status"
+        >
+          <p>
+            Этикетка устарела: старый код {formerHit.data.formerCode}, новый {formerHit.data.code} —
+            замените этикетку
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <Button asChild className="h-11">
+              <Link
+                to={`/units/${formerHit.data.code}?former=${encodeURIComponent(formerHit.data.formerCode)}`}
+              >
+                Открыть единицу
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11">
+              <Link to={`/labels?codes=${encodeURIComponent(formerHit.data.code)}`}>
+                Печать новой этикетки
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {list.data && list.data.length === 0 ? (

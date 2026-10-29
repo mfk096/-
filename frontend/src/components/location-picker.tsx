@@ -69,12 +69,7 @@ function PickerLevel({
                 )}
               >
                 <span className="min-w-0">
-                  <span className="block break-words">
-                    {node.name}
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      {node.kind}
-                    </span>
-                  </span>
+                  <span className="block break-words">{node.name}</span>
                   {disabled ? (
                     <span className="block text-xs text-muted-foreground">
                       нельзя: получится цикл

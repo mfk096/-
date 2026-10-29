@@ -5,7 +5,7 @@ export type TreeFields = {
 }
 
 export type LocationChoice = TreeFields & {
-  kind: string
+  kind: string | null
   full_path: string | null
   is_archived: boolean
 }

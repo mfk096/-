@@ -37,7 +37,7 @@ export const nomenclatureColumns: ColumnDef[] = [
 
 export const locationColumns: ColumnDef[] = [
   { key: 'name', header: 'Название', required: true },
-  { key: 'kind', header: 'Вид', required: true },
+  { key: 'kind', header: 'Вид', required: false },
   { key: 'parent_path', header: 'Родитель', required: false, aliases: ['Родительский путь'] },
   { key: 'responsible_name', header: 'Ответственный', required: false },
   { key: 'full_path', header: 'Полный путь', required: false },
@@ -63,7 +63,12 @@ export const equipmentColumns: ColumnDef[] = [
     aliases: ['Инв. номер'],
   },
   { key: 'status', header: 'Статус', required: true },
-  { key: 'location_path', header: 'Место', required: false, aliases: ['Полный путь места'] },
+  {
+    key: 'location_path',
+    header: 'Место',
+    required: false,
+    aliases: ['Полный путь места', 'Место установки'],
+  },
   {
     key: 'last_verification_date',
     header: 'Последняя поверка',

@@ -71,6 +71,10 @@ export function UserMenu() {
             ) : null}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => navigate('/password')}>Сменить пароль</DropdownMenuItem>
+          {access.role === 'admin' ? (
+            <DropdownMenuItem onSelect={() => navigate('/users')}>Пользователи</DropdownMenuItem>
+          ) : null}
           {access.role === 'admin' ? (
             <DropdownMenuItem onSelect={() => navigate('/connection')}>
               Настройки подключения
