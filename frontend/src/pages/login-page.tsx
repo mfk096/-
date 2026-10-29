@@ -136,6 +136,9 @@ export function LoginPage() {
           </p>
         </form>
       )}
+      <Button variant="outline" className="mt-4 w-full" asChild>
+        <Link to="/connection">Настройки подключения</Link>
+      </Button>
     </AuthScreen>
   )
 }

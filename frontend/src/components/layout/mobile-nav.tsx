@@ -8,7 +8,7 @@ export function MobileNav({ menuOpen, onOpenMenu }: { menuOpen: boolean; onOpenM
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="no-print fixed inset-x-0 bottom-0 z-30 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Мобильная навигация"
     >
       <ul className="grid grid-cols-5">

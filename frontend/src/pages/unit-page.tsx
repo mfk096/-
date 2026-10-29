@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
 import { HistoryTimeline } from '@/components/history-timeline'
+import { UnitQr } from '@/components/unit-qr'
 import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
@@ -154,7 +155,14 @@ export function UnitPage() {
         <Link to="/units" className="text-sm text-primary">
           ← К списку единиц
         </Link>
-        <h1 className="mt-2 font-mono text-2xl font-semibold tracking-tight">{code}</h1>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <h1 className="font-mono text-2xl font-semibold tracking-tight">{code}</h1>
+          {row ? (
+            <Button asChild variant="outline" className="h-11">
+              <Link to={`/labels?codes=${encodeURIComponent(row.code)}`}>Этикетка</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {!supabase && supabaseConfigMessage ? (
@@ -191,6 +199,13 @@ export function UnitPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <div className="flex items-center gap-4 sm:col-span-2">
+                <UnitQr code={row.code} pixels={256} className="size-28 shrink-0" />
+                <p className="text-muted-foreground">
+                  В QR записан только код {row.code}. Адреса сервера там нет, этикетку не нужно
+                  перепечатывать при переезде.
+                </p>
+              </div>
               <p>
                 <span className="text-muted-foreground">Серийный номер</span>
                 <br />

@@ -120,3 +120,28 @@
     @apply min-h-svh;
   }
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .app-main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}
+
+body.barcode-scanner-active,
+body.barcode-scanner-active #root {
+  background: transparent !important;
+  visibility: hidden;
+}
+
+body.barcode-scanner-active .barcode-scanner-modal {
+  visibility: visible;
+}

@@ -34,5 +34,12 @@ export function errorText(error: unknown, fallback: string): string {
   if (message.includes('employees_profile_id')) {
     return 'Этот пользователь уже привязан к другому сотруднику.'
   }
+  if (
+    /failed to fetch|networkerror|network request failed|load failed|the operation was aborted|aborterror|timeouterror|signal timed out/i.test(
+      message,
+    )
+  ) {
+    return 'Сервер не ответил. Проверьте адрес, сеть и что для локального сервера разрешён HTTP.'
+  }
   return message
 }

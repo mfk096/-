@@ -4,7 +4,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
+import { AndroidBackButton } from '@/components/android-back-button'
 import { AuthProvider } from '@/providers/auth-provider'
+import { ConnectionProvider } from '@/providers/connection-provider'
 import { queryClient } from '@/providers/query-client'
 import App from '@/App'
 import '@fontsource/manrope/cyrillic-400.css'
@@ -25,14 +27,17 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-          <Toaster position="top-center" richColors closeButton />
-        </AuthProvider>
-      </QueryClientProvider>
+      <ConnectionProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <BrowserRouter>
+              <AndroidBackButton />
+              <App />
+            </BrowserRouter>
+            <Toaster position="top-center" richColors closeButton />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ConnectionProvider>
     </ThemeProvider>
   </StrictMode>,
 )

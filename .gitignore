@@ -8,3 +8,17 @@ dist/
 .vscode/
 .idea/
 supabase/.temp/
+
+# Android: сборка и секреты подписи не коммитятся
+*.keystore
+*.jks
+*.apk
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/local.properties
+frontend/android/captures/
+frontend/android/.idea/
+frontend/android/app/src/main/assets/public/
+frontend/android/app/src/main/assets/capacitor.config.json
+frontend/android/app/src/main/assets/capacitor.plugins.json
