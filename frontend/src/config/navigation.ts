@@ -2,6 +2,7 @@ import {
   Boxes,
   ClipboardCheck,
   FileSpreadsheet,
+  History,
   Home,
   MapPin,
   QrCode,
@@ -36,6 +37,13 @@ export const navItems: NavItem[] = [
     stage: 'Доступно',
     icon: Boxes,
     mobile: true,
+  },
+  {
+    to: '/history',
+    label: 'Журнал',
+    description: 'Лента перемещений и смен статуса: кто, когда, откуда и куда.',
+    stage: 'Доступно',
+    icon: History,
   },
   {
     to: '/nomenclature',

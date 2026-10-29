@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
 import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
+import { UnitBulkActions } from '@/components/unit-bulk-actions'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +16,8 @@ import { useLocations } from '@/hooks/use-catalogs'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
-import { emptyToNull } from '@/lib/format'
+import { emptyToNull, unitsLabel } from '@/lib/format'
+import { equipmentBulkLimit } from '@/lib/journal'
 import { placeResponsibleNote } from '@/lib/location-tree'
 import { equipmentStatuses, isEquipmentStatus } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
@@ -57,6 +59,7 @@ export function UnitsPage() {
     nomenclatureId,
   })
   const [createdCode, setCreatedCode] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const nomenclature = useQuery({
     queryKey: ['nomenclature', 'options'],
@@ -95,6 +98,10 @@ export function UnitsPage() {
     },
   })
 
+  useEffect(() => {
+    setSelected(new Set())
+  }, [debouncedSearch, nomenclatureId, status])
+
   const selectedNomenclature = useMemo(
     () => nomenclature.data?.find((item) => item.id === draft.nomenclatureId),
     [nomenclature.data, draft.nomenclatureId],
@@ -111,6 +118,77 @@ export function UnitsPage() {
       { replace: true },
     )
   }
+
+  const visibleRows = list.data ?? []
+  const visibleIds = visibleRows.map((row) => row.id)
+  const selectedIds = visibleIds.filter((id) => selected.has(id))
+  const allSelected = visibleIds.length > 0 && selectedIds.length === visibleIds.length
+  const someSelected = selectedIds.length > 0 && !allSelected
+
+  function toggleSelected(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function refreshLists() {
+    await queryClient.invalidateQueries({ queryKey: ['equipment'] })
+    await queryClient.invalidateQueries({ queryKey: ['journal'] })
+    await queryClient.invalidateQueries({ queryKey: ['equipment-status-counts'] })
+    await queryClient.invalidateQueries({ queryKey: ['locations'] })
+    await queryClient.invalidateQueries({ queryKey: ['nomenclature'] })
+  }
+
+  const moveBulk = useMutation({
+    mutationFn: async (input: { locationId: string | null; comment: string }) => {
+      const client = supabase
+      if (!client) throw new Error('Supabase не настроен.')
+      if (selectedIds.length === 0) throw new Error('Выберите хотя бы одну единицу.')
+      if (selectedIds.length > equipmentBulkLimit) {
+        throw new Error(`За один раз можно изменить не больше ${equipmentBulkLimit} единиц`)
+      }
+      const { error } = await client.rpc('move_equipment_bulk', {
+        equipment_ids: selectedIds,
+        to_location_id: input.locationId,
+        comment: emptyToNull(input.comment),
+      })
+      if (error) throw error
+      return selectedIds.length
+    },
+    onSuccess: async (count) => {
+      setSelected(new Set())
+      await refreshLists()
+      toast.success(`Перемещение записано: ${unitsLabel(count)}`)
+    },
+    onError: (error) => toast.error(errorText(error, 'Не удалось переместить')),
+  })
+
+  const statusBulk = useMutation({
+    mutationFn: async (input: { status: EquipmentStatus; comment: string }) => {
+      const client = supabase
+      if (!client) throw new Error('Supabase не настроен.')
+      if (selectedIds.length === 0) throw new Error('Выберите хотя бы одну единицу.')
+      if (selectedIds.length > equipmentBulkLimit) {
+        throw new Error(`За один раз можно изменить не больше ${equipmentBulkLimit} единиц`)
+      }
+      const { error } = await client.rpc('change_equipment_status_bulk', {
+        equipment_ids: selectedIds,
+        new_status: input.status,
+        comment: emptyToNull(input.comment),
+      })
+      if (error) throw error
+      return selectedIds.length
+    },
+    onSuccess: async (count) => {
+      setSelected(new Set())
+      await refreshLists()
+      toast.success(`Статус изменён: ${unitsLabel(count)}`)
+    },
+    onError: (error) => toast.error(errorText(error, 'Не удалось сменить статус')),
+  })
 
   const create = useMutation({
     mutationFn: async () => {
@@ -404,14 +482,51 @@ export function UnitsPage() {
         </Card>
       ) : null}
 
+      {access.canEditEquipment && visibleRows.length > 0 ? (
+        <UnitBulkActions
+          selectedCount={selectedIds.length}
+          shownCount={visibleRows.length}
+          allSelected={allSelected}
+          someSelected={someSelected}
+          locations={locationChoices}
+          pending={moveBulk.isPending || statusBulk.isPending}
+          onToggleAll={() => {
+            setSelected((current) => {
+              if (allSelected) {
+                const next = new Set(current)
+                for (const id of visibleIds) next.delete(id)
+                return next
+              }
+              return new Set([...current, ...visibleIds])
+            })
+          }}
+          onClear={() => setSelected(new Set())}
+          onMove={(locationId, comment) => moveBulk.mutate({ locationId, comment })}
+          onChangeStatus={(nextStatus, comment) =>
+            statusBulk.mutate({ status: nextStatus, comment })
+          }
+        />
+      ) : null}
+
       <ul className="flex flex-col gap-3">
-        {(list.data ?? []).map((row) => {
+        {visibleRows.map((row) => {
           const responsible = placeResponsibleNote(row)
           return (
-            <li key={row.id}>
+            <li key={row.id} className="flex items-stretch rounded-xl border bg-card">
+              {access.canEditEquipment ? (
+                <label className="flex w-12 shrink-0 cursor-pointer items-center justify-center">
+                  <input
+                    type="checkbox"
+                    className="size-5"
+                    checked={selected.has(row.id)}
+                    aria-label={`Выбрать ${row.code}`}
+                    onChange={() => toggleSelected(row.id)}
+                  />
+                </label>
+              ) : null}
               <Link
                 to={`/units/${row.code}`}
-                className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
+                className="block min-w-0 flex-1 p-4 transition-colors hover:bg-accent/40"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-mono text-lg font-semibold">{row.code}</p>
