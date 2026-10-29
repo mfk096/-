@@ -510,6 +510,44 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_verification_queue: {
+        Row: {
+          id: string
+          code: string
+          status: Database['public']['Enums']['equipment_status']
+          serial_number: string | null
+          inventory_number: string | null
+          location_id: string | null
+          nomenclature_id: string
+          last_verification_date: string | null
+          next_verification_date: string | null
+          nomenclature_name: string
+          code_prefix: string
+          verification_interval_months: number | null
+          location_path: string | null
+        }
+        Relationships: []
+      }
+      verification_journal: {
+        Row: {
+          id: string
+          equipment_id: string
+          verified_at: string
+          result: Database['public']['Enums']['verification_result']
+          next_due_at: string | null
+          certificate_number: string | null
+          file_path: string | null
+          comment: string | null
+          equipment_code: string
+          status: Database['public']['Enums']['equipment_status']
+          nomenclature_id: string
+          location_id: string | null
+          nomenclature_name: string
+          code_prefix: string
+          location_path: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       move_equipment: {
@@ -582,6 +620,41 @@ export type Database = {
         }
         Returns: string[]
       }
+      verification_summary: {
+        Args: {
+          p_soon_days?: number
+        }
+        Returns: {
+          overdue: number
+          soon: number
+          ok: number
+          no_data: number
+        }[]
+      }
+      import_nomenclature: {
+        Args: {
+          p_rows: Json
+        }
+        Returns: Json
+      }
+      import_locations: {
+        Args: {
+          p_rows: Json
+        }
+        Returns: Json
+      }
+      import_employees: {
+        Args: {
+          p_rows: Json
+        }
+        Returns: Json
+      }
+      import_equipment: {
+        Args: {
+          p_rows: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: 'admin' | 'editor' | 'viewer'
@@ -602,4 +675,7 @@ export type MovementHistoryRow = Database['public']['Views']['movement_history']
 export type StatusHistoryRow = Database['public']['Views']['status_change_history']['Row']
 export type JournalEventRow = Database['public']['Views']['journal_events']['Row']
 export type EquipmentStatusCountRow = Database['public']['Views']['equipment_status_counts']['Row']
+export type VerificationQueueRow =
+  Database['public']['Views']['equipment_verification_queue']['Row']
+export type VerificationJournalRow = Database['public']['Views']['verification_journal']['Row']
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']

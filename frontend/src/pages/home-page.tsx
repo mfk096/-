@@ -7,6 +7,7 @@ import { errorText } from '@/lib/errors'
 import { asCount } from '@/lib/format'
 import { equipmentStatuses } from '@/lib/labels'
 import { supabase } from '@/lib/supabase'
+import { soonVerificationDays } from '@/lib/verification'
 import { getUserDisplay } from '@/lib/user-label'
 import { useAuth } from '@/providers/auth-context'
 import type { EquipmentStatus } from '@/types/database'
@@ -26,6 +27,20 @@ export function HomePage() {
       const byStatus = new Map<EquipmentStatus, number>()
       for (const row of data ?? []) byStatus.set(row.status, asCount(row.equipment_count))
       return byStatus
+    },
+  })
+
+  const verifications = useQuery({
+    queryKey: ['verification-summary', soonVerificationDays],
+    enabled: Boolean(supabase),
+    queryFn: async () => {
+      const client = supabase
+      if (!client) throw new Error('Supabase не настроен.')
+      const { data, error } = await client.rpc('verification_summary', {
+        p_soon_days: soonVerificationDays,
+      })
+      if (error) throw error
+      return data?.[0] ?? { overdue: 0, soon: 0, ok: 0, no_data: 0 }
     },
   })
 
@@ -82,6 +97,46 @@ export function HomePage() {
               </Card>
             </Link>
           ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Поверки</h2>
+        <p className="text-sm text-muted-foreground">
+          Без списанных. «Скоро» — следующие {soonVerificationDays} дней, включая сегодня.
+        </p>
+        {verifications.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {errorText(verifications.error, 'Не удалось посчитать поверки')}
+          </p>
+        ) : null}
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            to={`/verifications?group=overdue&days=${soonVerificationDays}`}
+            className="rounded-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <Card className="h-full transition-colors hover:bg-accent/40">
+              <CardHeader className="gap-3">
+                <p className="text-3xl font-semibold tabular-nums">
+                  {asCount(verifications.data?.overdue)}
+                </p>
+                <p className="text-sm font-medium">Поверка просрочена</p>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link
+            to={`/verifications?group=soon&days=${soonVerificationDays}`}
+            className="rounded-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <Card className="h-full transition-colors hover:bg-accent/40">
+              <CardHeader className="gap-3">
+                <p className="text-3xl font-semibold tabular-nums">
+                  {asCount(verifications.data?.soon)}
+                </p>
+                <p className="text-sm font-medium">Скоро поверка</p>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Field } from '@/components/field'
 import { HistoryTimeline } from '@/components/history-timeline'
 import { UnitQr } from '@/components/unit-qr'
+import { VerificationJournal } from '@/components/verification-journal'
 import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
@@ -250,13 +251,22 @@ export function UnitPage() {
                     {formatDate(row.next_verification_date)}
                   </p>
                   <p className="text-muted-foreground sm:col-span-2">
-                    Интервал {row.verification_interval_months} мес. Журнал поверок появится на
-                    этапе 6, даты на карточке обновляет база.
+                    Интервал {row.verification_interval_months} мес. Даты на карточке обновляет база
+                    по последней записи журнала.
                   </p>
                 </>
               ) : null}
             </CardContent>
           </Card>
+
+          {row.requires_verification ? (
+            <VerificationJournal
+              equipmentId={row.id}
+              status={row.status}
+              intervalMonths={row.verification_interval_months}
+              canEdit={access.canEditEquipment}
+            />
+          ) : null}
 
           {access.canEditEquipment ? (
             <Card>

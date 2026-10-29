@@ -1,6 +1,6 @@
 # Модель данных
 
-Фактическая схема после этапа 4. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md).
+Фактическая схема после этапа 6. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md). Формат Excel: [excel-format.md](excel-format.md).
 
 Коды статусов в базе стабильные, подписи на экране русские:
 
@@ -176,10 +176,53 @@
 | `result` | `verification_result` | not null |
 | `next_due_at` | date | null |
 | `certificate_number` | text | null |
-| `file_path` | text | null. Путь в Storage, бакет появится с разделом поверок |
+| `file_path` | text | null. Путь объекта в приватном бакете `verification-certificates` |
 | `comment` | text | null |
 
-Вставка и правка пересчитывают `equipment.last_verification_date` и `next_verification_date` по самой поздней записи (`verified_at`). Запись без флага поверки у номенклатуры отклоняется. Удалить строку журнала нельзя.
+Вставка и правка пересчитывают `equipment.last_verification_date` и `next_verification_date` по самой поздней записи (`verified_at`). Запись без флага поверки у номенклатуры отклоняется. Удалить строку журнала нельзя. Файл свидетельства удалить может editor или admin, строка журнала при этом остаётся.
+
+Представление `verification_journal` (`security_invoker = true`) добавляет код единицы, название номенклатуры, статус и полный путь места.
+
+## equipment_verification_queue
+
+Представление, `security_invoker = true`. Единицы, у которых `nomenclature.requires_verification = true`, включая списанные. Поля списка: код, статус, серийный и инвентарный номера, номенклатура, интервал, даты поверки, полный путь места.
+
+Группу считает клиент по `next_verification_date` и порогу дней:
+
+| Группа | Условие |
+| --- | --- |
+| Просрочена | дата раньше сегодня |
+| Скоро | от сегодня до сегодня + порог включительно |
+| В порядке | дата позже порога |
+| Нет данных | даты нет |
+
+## verification_summary
+
+`verification_summary(p_soon_days integer default 30)` возвращает одну строку: `overdue`, `soon`, `ok`, `no_data`. Списанные не считает. Порог от 0 до 3650, иначе ошибка. Функция не `security definer`, учитывает RLS. Её читает главная с порогом 30.
+
+## Импорт Excel
+
+Функции не `security definer`. Вызов только у `admin`: внутри проверяется `public.current_role()`. Один вызов — одна транзакция, ошибка откатывает весь файл. Больше 2000 строк отклоняется до записи. Ответ — jsonb: `created`, `codes`, `warnings`.
+
+| Функция | Что создаёт |
+| --- | --- |
+| `import_nomenclature(jsonb)` | Позиции номенклатуры. Повтор префикса внутри файла откатывает уже вставленные строки этого вызова |
+| `import_locations(jsonb)` | Узлы дерева. Родитель — полный путь, в том числе из этого же файла |
+| `import_employees(jsonb)` | Карточки сотрудников |
+| `import_equipment(jsonb)` | Единицы. Поле кода в json игнорируется, номер пишет триггер. Повтор серийного номера — элемент `warnings`, не ошибка |
+
+`excel_import_guard(jsonb)` проверяет роль, что аргумент — массив, и потолок 2000 строк. `fold_text(text)` сравнивает строки без регистра, включая кириллицу, независимо от локали базы.
+
+## Storage
+
+Приватный бакет `verification-certificates`. Размер файла до 10 МБ. Типы: PDF, JPEG, PNG, WEBP, HEIC, HEIF. Политики на `storage.objects` только для этого бакета:
+
+| Операция | Кто |
+| --- | --- |
+| SELECT | активный пользователь (`current_role()` не NULL) |
+| INSERT, UPDATE, DELETE | `editor` и `admin` |
+
+`anon` политик не имеет. На голом Postgres таблицы `storage.buckets` и `storage.objects` создаёт тестовая заглушка. На боевой Supabase схема `storage` уже есть, заглушку не применяют.
 
 ## RLS
 
@@ -189,11 +232,13 @@
 | --- | --- |
 | `anon` | ничего |
 | активный пользователь | читать все таблицы и представления |
-| `editor`, `admin` | вставлять и менять `equipment`, `movements`, `status_changes`, `verifications` |
-| `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles` |
+| `editor`, `admin` | вставлять и менять `equipment`, `movements`, `status_changes`, `verifications`; писать объекты бакета `verification-certificates` |
+| `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles`; вызывать импорт Excel |
 | никто из клиента | писать в `code_counters`; удалять единицу и строки истории |
 
 `code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_equipment_bulk`, `change_equipment_status_bulk`, `move_location`, `location_full_path`, `location_ancestor_ids`, `effective_responsible_employee_id` и `location_responsible_source` у `authenticated` остаются. Представления `journal_events` и `equipment_status_counts` читает `authenticated`, у `anon` выбора нет. У `anon` нет `EXECUTE` ни на одну функцию `public`, кроме объектов расширений: Supabase выдаёт это право роли напрямую, и `REVOKE` у `PUBLIC` его не снимает. У каждой новой функции этапа 4 `EXECUTE` явно снят с `anon` и `PUBLIC` и выдан `authenticated`. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции не `security definer`. Для роли `postgres` в схеме `public` умолчание больше не выдаёт `EXECUTE` роли `anon`.
+
+Этап 6 добавляет `verification_summary`, `fold_text`, `excel_import_guard` и четыре функции импорта. У каждой `EXECUTE` снят с `anon` и `PUBLIC` и выдан `authenticated`. Они не `security definer`. Представления `equipment_verification_queue` и `verification_journal` созданы с `security_invoker = true`, их читает `authenticated`, `anon` не читает.
 
 ## Связи
 

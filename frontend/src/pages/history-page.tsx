@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { saveJournalWorkbook } from '@/lib/excel/save'
 import { HistoryTimeline } from '@/components/history-timeline'
 import { Field } from '@/components/field'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
@@ -21,6 +23,7 @@ import {
   pageNumber,
 } from '@/lib/journal'
 import { equipmentStatuses, isEquipmentStatus } from '@/lib/labels'
+import { loadFilteredJournal } from '@/lib/journal-load'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 
 export function HistoryPage() {
@@ -156,11 +159,57 @@ export function HistoryPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Журнал</h1>
-        <p className="mt-2 text-muted-foreground">
-          Перемещения и смены статуса в одной ленте. Фильтры остаются в адресе страницы.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Журнал</h1>
+          <p className="mt-2 text-muted-foreground">
+            Перемещения и смены статуса в одной ленте. Фильтры остаются в адресе страницы.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11"
+          disabled={rangeError}
+          onClick={() => {
+            void loadFilteredJournal({
+              code: codeParam,
+              from,
+              to,
+              eventType,
+              nomenclatureId,
+              locationId,
+              authorId,
+              status,
+            })
+              .then((events) =>
+                saveJournalWorkbook(
+                  events.map((row) => ({
+                    occurred_at: row.occurred_at,
+                    event_kind: row.event_kind,
+                    equipment_code: row.equipment_code,
+                    nomenclature_name: row.nomenclature_name,
+                    from_path: row.from_path,
+                    to_path: row.to_path,
+                    from_status: row.from_status,
+                    to_status: row.to_status,
+                    actor_name: row.actor_name,
+                    comment: row.comment,
+                  })),
+                  'журнал.xlsx',
+                ).then(() =>
+                  toast.success(
+                    events.length >= 20000
+                      ? 'В файле первые 20000 строк. Сузьте фильтры, если нужно больше.'
+                      : `В файле ${events.length} строк, с текущими фильтрами`,
+                  ),
+                ),
+              )
+              .catch((error) => toast.error(errorText(error, 'Не удалось выгрузить журнал')))
+          }}
+        >
+          Скачать Excel
+        </Button>
       </header>
 
       {!supabase && supabaseConfigMessage ? (

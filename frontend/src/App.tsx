@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { RecoveryRedirect } from '@/components/auth/recovery-redirect'
 import { ProtectedRoute } from '@/components/auth/protected-route'
@@ -16,6 +17,11 @@ import { ScanPage } from '@/pages/scan-page'
 import { StubPage } from '@/pages/stub-page'
 import { UnitPage } from '@/pages/unit-page'
 import { UnitsPage } from '@/pages/units-page'
+import { VerificationsPage } from '@/pages/verifications-page'
+
+const ImportExportPage = lazy(() =>
+  import('@/pages/import-export-page').then((module) => ({ default: module.ImportExportPage })),
+)
 
 const implemented = new Set([
   '/',
@@ -25,6 +31,8 @@ const implemented = new Set([
   '/history',
   '/scan',
   '/labels',
+  '/verifications',
+  '/import-export',
 ])
 
 export default function App() {
@@ -42,6 +50,15 @@ export default function App() {
             <Route path="units" element={<UnitsPage />} />
             <Route path="units/:code" element={<UnitPage />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="verifications" element={<VerificationsPage />} />
+            <Route
+              path="import-export"
+              element={
+                <Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Загрузка…</p>}>
+                  <ImportExportPage />
+                </Suspense>
+              }
+            />
             <Route path="scan" element={<ScanPage />} />
             <Route path="labels" element={<LabelsPage />} />
             <Route path="locations" element={<LocationsPage />} />
