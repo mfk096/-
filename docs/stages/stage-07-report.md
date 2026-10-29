@@ -2,6 +2,8 @@
 
 Релиз 1.0: тестовый хостинг, APK, пользователи и правки владельца по местам, префиксу и обязательным полям единицы. Миграции до `20261029121500` включительно не менялись. На боевой Supabase этот этап ничего не отправлял.
 
+Pull request: https://github.com/mfk096/-/pull/9 (база `main`).
+
 ## Сделано
 
 - Workflow `.github/workflows/deploy-pages.yml`: push в `main` и ручной запуск, `npm ci`, сборка с `base` из GitHub Pages (`/-/`), `VITE_SUPABASE_*` и `VITE_PUBLIC_APP_URL` из repository variables. Прямые ссылки: `frontend/public/404.html` по схеме spa-github-pages, `index.html` возвращает адрес. HashRouter не использовался, чтобы QR был обычной ссылкой.
