@@ -3,6 +3,10 @@ name: Android APK
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 jobs:
@@ -26,11 +30,13 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # Пакет tools из SDK удалён. У action по умолчанию стоит «tools platform-tools»,
+      # из-за этого sdkmanager падает с «Failed to find package tools».
+      # compileSdk проекта — 36, Gradle дополнительно берёт build-tools 35.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Пакеты SDK
-        run: yes | sdkmanager --licenses >/dev/null || true && sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0 build-tools;36.0.0'
 
       - name: Зависимости
         working-directory: frontend
