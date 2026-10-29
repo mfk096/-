@@ -1,8 +1,8 @@
 # Отчёт этапа 2
 
-Номенклатура, единицы и выдача кодов базой. Миграции на боевой Supabase не применялись.
+Номенклатура, единицы и выдача кодов базой. Миграции 1–9 координатор уже применил к облачному проекту. `20261029120900_lock_down_functions.sql` на боевой проект из этого изменения не применялась.
 
-Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-frontend-scaffold-eb31`).
+Pull request: https://github.com/mfk096/-/pull/2 (база `main`).
 
 ## Сделано
 
@@ -13,6 +13,7 @@ Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-fron
 - Дерево мест без циклов. `location_full_path` и `effective_responsible_employee_id`, представление `locations_with_path`.
 - Профиль создаётся триггером на `auth.users` с ролью `viewer`. Отдельная миграция добивает старых пользователей и ставит `admin` для `kb09062001@gmail.com`, если такой пользователь есть. Свою роль сменить нельзя.
 - RLS: anon пустой, чтение у активных, единицы и журналы пишут editor и admin, справочники и профили — admin. `public.current_role()` — security definer с `search_path`.
+- `20261029120900_lock_down_functions.sql` закрывает вызов security definer и триггерных функций через `/rest/v1/rpc`. `EXECUTE` снят с `PUBLIC`, `anon` и `authenticated` у триггеров и `backfill_profiles`. `current_role()` остаётся у `authenticated`. У `move_equipment` и `change_equipment_status` явный `GRANT` для `authenticated`.
 - `supabase/seed.sql` только для локальной разработки, в миграции не входит.
 - Фронтенд: типы в `frontend/src/types/database.ts`, типизированный клиент, разделы «Номенклатура» и «Единицы», карточка `/units/:code`. Кнопки правки скрыты по роли из `profiles`. Интерфейс на русском.
 - В журнал решений добавлены договорённости про облако и Android: разработка на тестовых данных, переезд на self-hosted, Capacitor на этапе 5, APK на этапе 7.
@@ -30,6 +31,7 @@ Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-fron
 7. `supabase/migrations/20261029120600_profiles_auth.sql`
 8. `supabase/migrations/20261029120700_rls.sql`
 9. `supabase/migrations/20261029120800_backfill_profiles.sql`
+10. `supabase/migrations/20261029120900_lock_down_functions.sql`
 
 ## Проверено тестами
 
@@ -49,6 +51,7 @@ Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-fron
 - путь места и наследование ответственного, цикл в дереве отвергается;
 - RLS: зритель только читает, отключённый не видит строк, anon без прав, редактор пишет единицы и не пишет справочник, администратор пишет справочник и чужую роль, свою роль не меняет;
 - seed на более полной заглушке `auth.users` создаёт завод, KYOC, весы с датами поверки и три демо-роли.
+- `supabase/tests/05_function_locks.sql`: anon не вызывает `backfill_profiles`, `equipment_before_write`, `handle_new_user`, `nomenclature_after_insert_counter`, `current_role` и RPC; authenticated вызывает `current_role`, `move_equipment` и `change_equipment_status`; вставка единицы по-прежнему получает код; профиль создаётся триггером без `EXECUTE` у вставляющего; повтор миграции не снимает эти права; новая функция не достаётся `anon` и `PUBLIC`.
 
 `npm run lint`, `npm run typecheck` и `npm run build` во `frontend/`.
 
@@ -59,7 +62,7 @@ Pull request: https://github.com/mfk096/-/pull/2 (база `cursor/stage-01-fron
 - QR, этикетки, сканер и Android (Capacitor, cleartext HTTP) — этап 5.
 - Журнал поверок в интерфейсе и Excel — этап 6. Даты на карточке показываются, если номенклатура требует поверки.
 - Переезд на сервер завода, перенос данных и сборка APK — этап 7.
-- Успешный вход в боевой проект по-прежнему не проверялся: миграции туда не применялись.
+- Успешный вход в боевой проект по-прежнему не проверялся. Десятую миграцию на облако не отправляли.
 
 ## Спорные моменты
 

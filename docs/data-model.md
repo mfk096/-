@@ -164,7 +164,7 @@
 | `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles` |
 | никто из клиента | писать в `code_counters`; удалять единицу и строки истории |
 
-`code_counters` обновляет только триггер выдачи кода (`security definer`).
+`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment` и `change_equipment_status` у `authenticated` остаются.
 
 ## Связи
 

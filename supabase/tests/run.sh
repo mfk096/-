@@ -66,6 +66,8 @@ run_rules() {
   echo "== parallel check + rls"
   psql_db "$url" -f "$ROOT/supabase/tests/02_parallel_check.sql"
   psql_db "$url" -f "$ROOT/supabase/tests/03_rls.sql"
+  echo "== function locks"
+  psql_db "$url" -f "$ROOT/supabase/tests/05_function_locks.sql"
   rm -rf "$tmp"
 }
 

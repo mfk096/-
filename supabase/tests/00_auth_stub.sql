@@ -45,6 +45,12 @@ GRANT USAGE ON SCHEMA auth TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION auth.role() TO anon, authenticated;
 
+-- На облачном Supabase новая функция в public сразу получает EXECUTE для anon и authenticated
+-- (default privileges), помимо PUBLIC. Заглушка повторяет это, чтобы миграция закрытия прав
+-- проверялась так же, как на боевом проекте. Саму заглушку на боевой проект не применяют.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   email text,

@@ -109,6 +109,19 @@ npm run build
 
 Схема — файлы `supabase/migrations/*.sql`. Их применяют по порядку имени к пустому проекту. На боевой Supabase их накатывает координатор после ревью. Ключ `service_role` в репозиторий и во фронтенд не кладётся: адрес и anon key только в переменных окружения.
 
+Порядок файлов:
+
+1. `supabase/migrations/20261029120000_enums_and_updated_at.sql`
+2. `supabase/migrations/20261029120100_tables.sql`
+3. `supabase/migrations/20261029120200_codes_and_guards.sql`
+4. `supabase/migrations/20261029120300_history.sql`
+5. `supabase/migrations/20261029120400_verifications.sql`
+6. `supabase/migrations/20261029120500_locations_and_views.sql`
+7. `supabase/migrations/20261029120600_profiles_auth.sql`
+8. `supabase/migrations/20261029120700_rls.sql`
+9. `supabase/migrations/20261029120800_backfill_profiles.sql`
+10. `supabase/migrations/20261029120900_lock_down_functions.sql` — снимает `EXECUTE` у триггерных функций и `backfill_profiles` с `anon` и `authenticated`. `current_role`, `move_equipment` и `change_equipment_status` остаются у `authenticated`.
+
 В облаке держат тестовые данные. Реальные данные завода появляются после переезда на self-hosted Supabase, см. [docs/decisions.md](docs/decisions.md).
 
 Локально через Supabase CLI, если есть Docker:
