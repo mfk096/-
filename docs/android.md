@@ -5,7 +5,7 @@
 ## Скачать APK из GitHub Actions
 
 1. Откройте репозиторий на GitHub → Actions → workflow **Android APK**.
-2. Workflow запускается сам при push в `main` и вручную через **Run workflow**.
+2. Workflow запускается при push в `main`, вручную через **Run workflow** и в pull request, если менялись `frontend/**` или сам workflow.
 3. Дождитесь зелёного прогона. Внизу страницы блок **Artifacts**.
 4. Скачайте `inventory-debug-apk`. Внутри `app-debug.apk`.
 5. Если в секретах репозитория задан keystore, рядом появится `inventory-release-apk`. Без секретов release не собирается, debug при этом всё равно есть.
