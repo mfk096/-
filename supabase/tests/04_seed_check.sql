@@ -91,6 +91,79 @@ BEGIN
     RAISE EXCEPTION 'FAIL: у KYOC-001 нет начального перемещения';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.locations_with_path
+    WHERE id = 'c3333333-3333-4333-8333-333333333333'
+      AND responsible_is_inherited
+      AND responsible_source_location_id = 'c1111111-1111-4111-8111-111111111111'
+      AND responsible_source_name = 'Завод «Северный»'
+      AND equipment_count = 1
+      AND direct_equipment_count = 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL: участок печати — наследование или счётчик';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.locations_with_path
+    WHERE id = 'c1111111-1111-4111-8111-111111111111'
+      AND NOT responsible_is_inherited
+      AND effective_responsible_name = 'Иван Петров'
+      AND equipment_count = 4
+      AND direct_equipment_count = 0
+      AND child_count = 3
+  ) THEN
+    RAISE EXCEPTION 'FAIL: завод — свой ответственный или счётчик поддерева';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.locations_with_path
+    WHERE id = 'c2222222-2222-4222-8222-222222222222'
+      AND responsible_is_inherited
+      AND equipment_count = 3
+      AND direct_equipment_count = 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL: цех — наследование или счётчик';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.locations_with_path
+    WHERE id = 'c4444444-4444-4444-8444-444444444444'
+      AND NOT responsible_is_inherited
+      AND effective_responsible_name = 'Мария Соколова'
+      AND equipment_count = 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL: метрология должна держать своего ответственного';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.equipment_list
+    WHERE code = 'KYOC-001'
+      AND location_responsible_name = 'Иван Петров'
+      AND location_responsible_inherited
+      AND location_responsible_source_name = 'Завод «Северный»'
+  ) THEN
+    RAISE EXCEPTION 'FAIL: у KYOC-001 нет унаследованного ответственного';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.equipment_list
+    WHERE code = 'SCALE-001'
+      AND location_responsible_name = 'Мария Соколова'
+      AND NOT location_responsible_inherited
+  ) THEN
+    RAISE EXCEPTION 'FAIL: у SCALE-001 ответственный не Мария';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.employees WHERE is_archived IS NULL) THEN
+    RAISE EXCEPTION 'FAIL: у сотрудника пустой признак архива';
+  END IF;
+
   RAISE NOTICE 'ok: seed';
 END;
 $$;

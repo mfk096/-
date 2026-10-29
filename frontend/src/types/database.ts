@@ -36,6 +36,7 @@ export type Database = {
           position: string | null
           phone: string | null
           profile_id: string | null
+          is_archived: boolean
           created_at: string
           updated_at: string
         }
@@ -45,6 +46,7 @@ export type Database = {
           position?: string | null
           phone?: string | null
           profile_id?: string | null
+          is_archived?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -53,6 +55,7 @@ export type Database = {
           position?: string | null
           phone?: string | null
           profile_id?: string | null
+          is_archived?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -379,6 +382,28 @@ export type Database = {
           full_path: string | null
           effective_responsible_employee_id: string | null
           effective_responsible_name: string | null
+          responsible_source_location_id: string | null
+          responsible_source_name: string | null
+          responsible_is_inherited: boolean
+          effective_responsible_archived: boolean
+          equipment_count: number
+          direct_equipment_count: number
+          child_count: number
+        }
+        Relationships: []
+      }
+      employees_directory: {
+        Row: {
+          id: string
+          full_name: string
+          position: string | null
+          phone: string | null
+          profile_id: string | null
+          is_archived: boolean
+          created_at: string
+          updated_at: string
+          profile_name: string | null
+          location_count: number
         }
         Relationships: []
       }
@@ -421,6 +446,9 @@ export type Database = {
           requires_verification: boolean
           verification_interval_months: number | null
           location_path: string | null
+          location_responsible_name: string | null
+          location_responsible_inherited: boolean
+          location_responsible_source_name: string | null
         }
         Relationships: []
       }
@@ -486,6 +514,22 @@ export type Database = {
         }
         Returns: string
       }
+      location_responsible_source: {
+        Args: {
+          p_location_id: string
+        }
+        Returns: {
+          employee_id: string
+          source_location_id: string
+        }[]
+      }
+      move_location: {
+        Args: {
+          location_id: string
+          new_parent_id: string | null
+        }
+        Returns: Database['public']['Tables']['locations']['Row']
+      }
     }
     Enums: {
       app_role: 'admin' | 'editor' | 'viewer'
@@ -501,6 +545,7 @@ export type EquipmentStatus = Database['public']['Enums']['equipment_status']
 export type NomenclatureRow = Database['public']['Views']['nomenclature_with_counts']['Row']
 export type EquipmentListRow = Database['public']['Views']['equipment_list']['Row']
 export type LocationPathRow = Database['public']['Views']['locations_with_path']['Row']
+export type EmployeeDirectoryRow = Database['public']['Views']['employees_directory']['Row']
 export type MovementHistoryRow = Database['public']['Views']['movement_history']['Row']
 export type StatusHistoryRow = Database['public']['Views']['status_change_history']['Row']
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']

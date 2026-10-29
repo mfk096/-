@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
+import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
 import { Button } from '@/components/ui/button'
@@ -10,9 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocations } from '@/hooks/use-catalogs'
 import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
 import { emptyToNull, formatDate, formatDateTime } from '@/lib/format'
+import { placeResponsibleNote } from '@/lib/location-tree'
 import { equipmentStatuses, isEquipmentStatus, statusLabel } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 import type { EquipmentStatus } from '@/types/database'
@@ -84,23 +87,11 @@ export function UnitPage() {
     },
   })
 
-  const locations = useQuery({
-    queryKey: ['locations', 'options'],
-    enabled: Boolean(supabase && access.canEditEquipment),
-    queryFn: async () => {
-      const client = supabase
-      if (!client) throw new Error('Supabase не настроен.')
-      const { data, error } = await client
-        .from('locations_with_path')
-        .select('id, full_path, name, is_archived')
-        .order('full_path')
-      if (error) throw error
-      return data ?? []
-    },
-  })
+  const locations = useLocations(access.canEditEquipment)
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ['equipment'] })
+    await queryClient.invalidateQueries({ queryKey: ['locations'] })
     await queryClient.invalidateQueries({ queryKey: ['movements', equipmentId] })
     await queryClient.invalidateQueries({ queryKey: ['status-changes', equipmentId] })
   }
@@ -168,10 +159,11 @@ export function UnitPage() {
     onError: (error) => toast.error(errorText(error, 'Не удалось сохранить')),
   })
 
-  const locationOptions = (locations.data ?? []).filter(
+  const locationChoices = (locations.data ?? []).filter(
     (item) => !item.is_archived || item.id === row?.location_id,
   )
   const currentLocation = locationId === null ? (row?.location_id ?? '') : locationId
+  const responsible = row ? placeResponsibleNote(row) : null
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -229,7 +221,18 @@ export function UnitPage() {
               <p className="sm:col-span-2">
                 <span className="text-muted-foreground">Место</span>
                 <br />
-                {placeLabel(row.location_path)}
+                {row.location_id ? (
+                  <Link to={`/locations/${row.location_id}`} className="text-primary">
+                    {placeLabel(row.location_path)}
+                  </Link>
+                ) : (
+                  placeLabel(row.location_path)
+                )}
+              </p>
+              <p className="sm:col-span-2">
+                <span className="text-muted-foreground">Ответственный места</span>
+                <br />
+                {responsible ?? 'Не назначен'}
               </p>
               <p className="sm:col-span-2">
                 <span className="text-muted-foreground">Заметки</span>
@@ -363,8 +366,8 @@ export function UnitPage() {
               <CardHeader>
                 <CardTitle>Перемещение</CardTitle>
                 <CardDescription>
-                  Место выбирается из списка. Можно переносить при любом статусе, в том числе
-                  «Списано».
+                  Место выбирается из дерева, поиск идёт по полному пути. Можно переносить при любом
+                  статусе, в том числе «Списано».
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -376,19 +379,14 @@ export function UnitPage() {
                   }}
                 >
                   <Field label="Куда" htmlFor="card-location">
-                    <NativeSelect
+                    <LocationPicker
                       id="card-location"
+                      locations={locationChoices}
                       value={currentLocation}
-                      onChange={(event) => setLocationId(event.target.value)}
-                    >
-                      <option value="">Не назначено</option>
-                      {locationOptions.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.full_path || item.name}
-                          {item.is_archived ? ' (архив)' : ''}
-                        </option>
-                      ))}
-                    </NativeSelect>
+                      onChange={setLocationId}
+                      allowEmpty
+                      emptyLabel="Не назначено"
+                    />
                   </Field>
                   <Field label="Комментарий" htmlFor="card-move-comment">
                     <Textarea

@@ -31,5 +31,8 @@ export function errorText(error: unknown, fallback: string): string {
   if (message.includes('nomenclature_prefix_format') || message.includes('Префикс:')) {
     return 'Префикс: от 2 до 8 символов, только A–Z и цифры.'
   }
+  if (message.includes('employees_profile_id')) {
+    return 'Этот пользователь уже привязан к другому сотруднику.'
+  }
   return message
 }

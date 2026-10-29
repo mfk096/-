@@ -1,6 +1,6 @@
 # Модель данных
 
-Фактическая схема этапа 2. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md).
+Фактическая схема после этапа 3. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md).
 
 Коды статусов в базе стабильные, подписи на экране русские:
 
@@ -49,6 +49,9 @@
 | `position` | text | null |
 | `phone` | text | null |
 | `profile_id` | uuid | null, unique, FK → `profiles.id`, при удалении профиля обнуляется |
+| `is_archived` | boolean | not null, по умолчанию `false` |
+
+Удалить сотрудника, на которого ссылается `locations.responsible_employee_id`, нельзя: триггер просит архивировать карточку. Архивный сотрудник остаётся на уже указанных местах, но новым ответственным его назначить нельзя. Представление `employees_directory` добавляет имя связанного профиля и `location_count`.
 
 ## locations
 
@@ -63,7 +66,9 @@
 | `responsible_employee_id` | uuid | null, FK → `employees.id` |
 | `is_archived` | boolean | not null, по умолчанию `false` |
 
-Функции `location_full_path(id)` и `effective_responsible_employee_id(id)` считают путь (`Завод → Цех → Участок`) и ответственного. Представление `locations_with_path` отдаёт оба значения и имя сотрудника. В строку места вычисленное имя не копируется.
+Функции `location_full_path(id)` и `effective_responsible_employee_id(id)` считают путь (`Завод → Цех → Участок`) и ответственного. `location_responsible_source(id)` дополнительно возвращает узел, с которого взято значение. Представление `locations_with_path` отдаёт путь, эффективного сотрудника, имя узла-источника, флаг `responsible_is_inherited`, признак архива этого сотрудника и три счётчика: `equipment_count` (единицы в узле и во всём поддереве), `direct_equipment_count`, `child_count`. В строку места вычисленное имя не копируется.
+
+Архивировать узел нельзя, пока в нём есть вложенные места или единицы с `equipment.location_id` на этот узел. История перемещений архив не блокирует. Новый узел и перенос не попадают внутрь архивного родителя. Перенос к другому родителю или в корень делает `move_location(location_id, new_parent_id)`: цикл («внутрь самого себя» или «внутрь вложенного узла») отвергается до записи. Функция не `security definer`, писать может только `admin`.
 
 ## nomenclature
 
@@ -105,7 +110,7 @@
 | `next_verification_date` | date | null, только при флаге поверки |
 | `notes` | text | null |
 
-Представление `equipment_list` соединяет единицу с названием номенклатуры и полным путём места.
+Представление `equipment_list` соединяет единицу с названием номенклатуры, полным путём места и ответственным этого места (`location_responsible_name`, флаг наследования и имя узла-источника).
 
 При создании пишутся начальные строки в `movements` и `status_changes`. Дальше смена `location_id` (при любом статусе) добавляет перемещение, смена `status` — запись статуса. Комментарий передают функции `move_equipment(equipment_id, to_location_id, comment)` и `change_equipment_status(equipment_id, new_status, comment)`. Время записи — `clock_timestamp()`, чтобы два события одной транзакции не схлопывались в одну отметку.
 
@@ -164,7 +169,7 @@
 | `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles` |
 | никто из клиента | писать в `code_counters`; удалять единицу и строки истории |
 
-`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment` и `change_equipment_status` у `authenticated` остаются.
+`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_location` и `location_responsible_source` у `authenticated` остаются. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции этапа 3 не `security definer` и не выданы `anon`.
 
 ## Связи
 

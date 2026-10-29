@@ -68,6 +68,8 @@ run_rules() {
   psql_db "$url" -f "$ROOT/supabase/tests/03_rls.sql"
   echo "== function locks"
   psql_db "$url" -f "$ROOT/supabase/tests/05_function_locks.sql"
+  echo "== locations and responsibles"
+  psql_db "$url" -f "$ROOT/supabase/tests/06_locations_stage3.sql"
   rm -rf "$tmp"
 }
 
