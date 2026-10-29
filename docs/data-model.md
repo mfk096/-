@@ -1,6 +1,6 @@
 # Модель данных
 
-Фактическая схема после этапа 3. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md).
+Фактическая схема после этапа 4. Источник — `supabase/migrations/`. Журнал решений: [decisions.md](decisions.md).
 
 Коды статусов в базе стабильные, подписи на экране русские:
 
@@ -114,6 +114,8 @@
 
 При создании пишутся начальные строки в `movements` и `status_changes`. Дальше смена `location_id` (при любом статусе) добавляет перемещение, смена `status` — запись статуса. Комментарий передают функции `move_equipment(equipment_id, to_location_id, comment)` и `change_equipment_status(equipment_id, new_status, comment)`. Время записи — `clock_timestamp()`, чтобы два события одной транзакции не схлопывались в одну отметку.
 
+Пакетные функции `move_equipment_bulk(equipment_ids, to_location_id, comment)` и `change_equipment_status_bulk(equipment_ids, new_status, comment)` делают то же самое для нескольких единиц в одной транзакции. Ошибка на любой единице откатывает весь пакет, история появляется только если пакет прошёл целиком. Повтор одного id в массиве считается один раз. Пустой список, пустой id и пакет больше 200 единиц отвергаются. Если место или статус у единицы не меняется, в тексте ошибки есть её код. Права те же: `editor` и `admin`. Функции не `security definer`, действует RLS.
+
 ## movements
 
 | Поле | Тип | Ограничения |
@@ -128,6 +130,8 @@
 
 Удалить строку нельзя. Уже записанные место, время и автора править нельзя, комментарий можно. Представление `movement_history` добавляет пути и имя профиля.
 
+`location_ancestor_ids(location_id)` возвращает само место и предков до корня. Пустой массив, если места нет. Функция не `security definer`.
+
 ## status_changes
 
 | Поле | Тип | Ограничения |
@@ -141,6 +145,26 @@
 | `comment` | text | null |
 
 Те же запреты, что у перемещений: строка не удаляется, факты не переписываются. Представление `status_change_history` добавляет имя профиля.
+
+## journal_events
+
+Представление, не таблица. `security_invoker = true`. Склеивает `movements` и `status_changes` в одну ленту.
+
+| Поле | Смысл |
+| --- | --- |
+| `event_kind` | `movement` или `status_change` |
+| `occurred_at` | `moved_at` или `changed_at` |
+| `equipment_code`, `nomenclature_id`, `nomenclature_name` | единица и модель |
+| `actor_id`, `actor_name` | профиль, который выполнил действие |
+| `from_path`, `to_path` | полный путь места, только у перемещения |
+| `location_scope` | id места и предков «откуда» и «куда». Фильтр узла захватывает вложенные места |
+| `from_status`, `to_status`, `status_scope` | только у смены статуса. `status_scope` — исходный и новый код, без NULL |
+
+У перемещения `status_scope` пустой, у смены статуса `location_scope` пустой.
+
+## equipment_status_counts
+
+Представление, `security_invoker = true`. По одной строке на каждый код `equipment_status`, включая нулевое число единиц. Считает то, что вызывающему видно через RLS.
 
 ## verifications
 
@@ -169,7 +193,7 @@
 | `admin` | вставлять, менять и удалять `nomenclature`, `locations`, `employees`; менять `profiles` |
 | никто из клиента | писать в `code_counters`; удалять единицу и строки истории |
 
-`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_location`, `location_full_path`, `effective_responsible_employee_id` и `location_responsible_source` у `authenticated` остаются. У `anon` нет `EXECUTE` ни на одну функцию `public`, кроме объектов расширений: Supabase выдаёт это право роли напрямую, и `REVOKE` у `PUBLIC` его не снимает. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции не `security definer`. Для роли `postgres` в схеме `public` умолчание больше не выдаёт `EXECUTE` роли `anon`.
+`code_counters` обновляет только триггер выдачи кода (`security definer`). Триггерные функции и `backfill_profiles()` нельзя вызвать через RPC: `EXECUTE` снят с `anon` и `authenticated`. `current_role()`, `move_equipment`, `change_equipment_status`, `move_equipment_bulk`, `change_equipment_status_bulk`, `move_location`, `location_full_path`, `location_ancestor_ids`, `effective_responsible_employee_id` и `location_responsible_source` у `authenticated` остаются. Представления `journal_events` и `equipment_status_counts` читает `authenticated`, у `anon` выбора нет. У `anon` нет `EXECUTE` ни на одну функцию `public`, кроме объектов расширений: Supabase выдаёт это право роли напрямую, и `REVOKE` у `PUBLIC` его не снимает. У каждой новой функции этапа 4 `EXECUTE` явно снят с `anon` и `PUBLIC` и выдан `authenticated`. Триггеры архива мест и запрета удаления сотрудника через RPC не вызываются. Новые функции не `security definer`. Для роли `postgres` в схеме `public` умолчание больше не выдаёт `EXECUTE` роли `anon`.
 
 ## Связи
 

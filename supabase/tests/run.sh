@@ -72,6 +72,8 @@ run_rules() {
   psql_db "$url" -f "$ROOT/supabase/tests/06_locations_stage3.sql"
   echo "== anon function revoke"
   psql_db "$url" -f "$ROOT/supabase/tests/07_anon_function_revoke.sql"
+  echo "== journal and bulk"
+  psql_db "$url" -f "$ROOT/supabase/tests/08_journal_stage4.sql"
   rm -rf "$tmp"
 }
 

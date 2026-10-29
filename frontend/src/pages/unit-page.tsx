@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
+import { HistoryTimeline } from '@/components/history-timeline'
 import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
@@ -14,15 +15,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { useLocations } from '@/hooks/use-catalogs'
 import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
-import { emptyToNull, formatDate, formatDateTime } from '@/lib/format'
+import { emptyToNull, formatDate } from '@/lib/format'
+import { placeLabel } from '@/lib/journal'
 import { placeResponsibleNote } from '@/lib/location-tree'
-import { equipmentStatuses, isEquipmentStatus, statusLabel } from '@/lib/labels'
+import { equipmentStatuses, isEquipmentStatus } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 import type { EquipmentStatus } from '@/types/database'
-
-function placeLabel(path: string | null | undefined): string {
-  return path?.trim() ? path : 'Место не назначено'
-}
 
 export function UnitPage() {
   const { code = '' } = useParams()
@@ -55,33 +53,18 @@ export function UnitPage() {
   const row = unit.data
   const equipmentId = row?.id
 
-  const movements = useQuery({
-    queryKey: ['movements', equipmentId],
+  const history = useQuery({
+    queryKey: ['journal', 'unit', equipmentId],
     enabled: Boolean(supabase && equipmentId),
     queryFn: async () => {
       const client = supabase
       if (!client || !equipmentId) throw new Error('Нет единицы')
       const { data, error } = await client
-        .from('movement_history')
+        .from('journal_events')
         .select('*')
         .eq('equipment_id', equipmentId)
-        .order('moved_at', { ascending: false })
-      if (error) throw error
-      return data ?? []
-    },
-  })
-
-  const statuses = useQuery({
-    queryKey: ['status-changes', equipmentId],
-    enabled: Boolean(supabase && equipmentId),
-    queryFn: async () => {
-      const client = supabase
-      if (!client || !equipmentId) throw new Error('Нет единицы')
-      const { data, error } = await client
-        .from('status_change_history')
-        .select('*')
-        .eq('equipment_id', equipmentId)
-        .order('changed_at', { ascending: false })
+        .order('occurred_at', { ascending: false })
+        .order('id', { ascending: false })
       if (error) throw error
       return data ?? []
     },
@@ -92,8 +75,8 @@ export function UnitPage() {
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ['equipment'] })
     await queryClient.invalidateQueries({ queryKey: ['locations'] })
-    await queryClient.invalidateQueries({ queryKey: ['movements', equipmentId] })
-    await queryClient.invalidateQueries({ queryKey: ['status-changes', equipmentId] })
+    await queryClient.invalidateQueries({ queryKey: ['journal'] })
+    await queryClient.invalidateQueries({ queryKey: ['equipment-status-counts'] })
   }
 
   const changeStatus = useMutation({
@@ -404,46 +387,22 @@ export function UnitPage() {
           ) : null}
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold">История статусов</h2>
-            {(statuses.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Записей пока нет.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {(statuses.data ?? []).map((item) => (
-                  <li key={item.id} className="rounded-xl border p-4 text-sm">
-                    <p className="font-medium">
-                      {item.from_status ? statusLabel(item.from_status) : 'Создание'} →{' '}
-                      {statusLabel(item.to_status)}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {formatDateTime(item.changed_at)} · {item.changed_by_name}
-                    </p>
-                    {item.comment ? <p className="mt-2">{item.comment}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold">История перемещений</h2>
-            {(movements.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Записей пока нет.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {(movements.data ?? []).map((item) => (
-                  <li key={item.id} className="rounded-xl border p-4 text-sm">
-                    <p className="font-medium">
-                      {placeLabel(item.from_path)} → {placeLabel(item.to_path)}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {formatDateTime(item.moved_at)} · {item.moved_by_name}
-                    </p>
-                    {item.comment ? <p className="mt-2">{item.comment}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="text-lg font-semibold">История</h2>
+              <Link
+                to={`/history?code=${encodeURIComponent(row.code)}`}
+                className="text-sm text-primary"
+              >
+                В журнале
+              </Link>
+            </div>
+            {history.isLoading ? <p className="text-sm text-muted-foreground">Загрузка…</p> : null}
+            {history.error ? (
+              <p className="text-sm text-destructive" role="alert">
+                {errorText(history.error, 'Не удалось загрузить историю')}
+              </p>
+            ) : null}
+            {history.data ? <HistoryTimeline events={history.data} /> : null}
           </section>
         </>
       ) : null}

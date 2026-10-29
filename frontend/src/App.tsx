@@ -3,6 +3,7 @@ import { RecoveryRedirect } from '@/components/auth/recovery-redirect'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AppLayout } from '@/components/layout/app-layout'
 import { navItems } from '@/config/navigation'
+import { HistoryPage } from '@/pages/history-page'
 import { HomePage } from '@/pages/home-page'
 import { LocationPage } from '@/pages/location-page'
 import { LocationsPage } from '@/pages/locations-page'
@@ -13,7 +14,7 @@ import { StubPage } from '@/pages/stub-page'
 import { UnitPage } from '@/pages/unit-page'
 import { UnitsPage } from '@/pages/units-page'
 
-const implemented = new Set(['/', '/units', '/nomenclature', '/locations'])
+const implemented = new Set(['/', '/units', '/nomenclature', '/locations', '/history'])
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="nomenclature" element={<NomenclaturePage />} />
             <Route path="units" element={<UnitsPage />} />
             <Route path="units/:code" element={<UnitPage />} />
+            <Route path="history" element={<HistoryPage />} />
             <Route path="locations" element={<LocationsPage />} />
             <Route path="locations/:id" element={<LocationPage />} />
             {navItems

@@ -480,6 +480,36 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_events: {
+        Row: {
+          id: string
+          event_kind: string
+          occurred_at: string
+          equipment_id: string
+          equipment_code: string
+          nomenclature_id: string
+          nomenclature_name: string
+          actor_id: string
+          actor_name: string
+          comment: string | null
+          from_location_id: string | null
+          to_location_id: string | null
+          from_path: string | null
+          to_path: string | null
+          from_status: Database['public']['Enums']['equipment_status'] | null
+          to_status: Database['public']['Enums']['equipment_status'] | null
+          location_scope: string[]
+          status_scope: Database['public']['Enums']['equipment_status'][]
+        }
+        Relationships: []
+      }
+      equipment_status_counts: {
+        Row: {
+          status: Database['public']['Enums']['equipment_status']
+          equipment_count: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       move_equipment: {
@@ -530,6 +560,28 @@ export type Database = {
         }
         Returns: Database['public']['Tables']['locations']['Row']
       }
+      move_equipment_bulk: {
+        Args: {
+          equipment_ids: string[]
+          to_location_id: string | null
+          comment: string | null
+        }
+        Returns: Database['public']['Tables']['equipment']['Row'][]
+      }
+      change_equipment_status_bulk: {
+        Args: {
+          equipment_ids: string[]
+          new_status: Database['public']['Enums']['equipment_status']
+          comment: string | null
+        }
+        Returns: Database['public']['Tables']['equipment']['Row'][]
+      }
+      location_ancestor_ids: {
+        Args: {
+          p_location_id: string
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       app_role: 'admin' | 'editor' | 'viewer'
@@ -548,4 +600,6 @@ export type LocationPathRow = Database['public']['Views']['locations_with_path']
 export type EmployeeDirectoryRow = Database['public']['Views']['employees_directory']['Row']
 export type MovementHistoryRow = Database['public']['Views']['movement_history']['Row']
 export type StatusHistoryRow = Database['public']['Views']['status_change_history']['Row']
+export type JournalEventRow = Database['public']['Views']['journal_events']['Row']
+export type EquipmentStatusCountRow = Database['public']['Views']['equipment_status_counts']['Row']
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
