@@ -33,7 +33,7 @@ export const navItems: NavItem[] = [
     to: '/units',
     label: 'Единицы',
     description: 'Конкретные экземпляры с кодами вида KYOC-001, статусом и местом установки.',
-    stage: 'Этап 2',
+    stage: 'Доступно',
     icon: Boxes,
     mobile: true,
   },
@@ -41,7 +41,7 @@ export const navItems: NavItem[] = [
     to: '/nomenclature',
     label: 'Номенклатура',
     description: 'Типы и модели оборудования. У каждой модели свой префикс кода, например KYOC.',
-    stage: 'Этап 2',
+    stage: 'Доступно',
     icon: Tags,
   },
   {
