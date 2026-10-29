@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Field } from '@/components/field'
+import { LocationPicker } from '@/components/location-picker'
 import { StatusBadge } from '@/components/status-badge'
 import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
 import { Button } from '@/components/ui/button'
@@ -10,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocations } from '@/hooks/use-catalogs'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
 import { emptyToNull } from '@/lib/format'
+import { placeResponsibleNote } from '@/lib/location-tree'
 import { equipmentStatuses, isEquipmentStatus } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
 import type { EquipmentStatus } from '@/types/database'
@@ -70,21 +73,8 @@ export function UnitsPage() {
     },
   })
 
-  const locations = useQuery({
-    queryKey: ['locations', 'options'],
-    enabled: Boolean(supabase),
-    queryFn: async () => {
-      const client = supabase
-      if (!client) throw new Error('Supabase не настроен.')
-      const { data, error } = await client
-        .from('locations_with_path')
-        .select('id, full_path, name, is_archived')
-        .eq('is_archived', false)
-        .order('full_path')
-      if (error) throw error
-      return data ?? []
-    },
-  })
+  const locations = useLocations()
+  const locationChoices = (locations.data ?? []).filter((item) => !item.is_archived)
 
   const list = useQuery({
     queryKey: ['equipment', debouncedSearch, nomenclatureId, status],
@@ -151,6 +141,7 @@ export function UnitsPage() {
       setDraft({ ...emptyDraft, nomenclatureId })
       await queryClient.invalidateQueries({ queryKey: ['equipment'] })
       await queryClient.invalidateQueries({ queryKey: ['nomenclature'] })
+      await queryClient.invalidateQueries({ queryKey: ['locations'] })
       toast.success(`Единица создана: ${code}`)
     },
     onError: (error) => {
@@ -286,25 +277,15 @@ export function UnitsPage() {
                 />
               </Field>
               <div className="sm:col-span-2">
-                <Field
-                  label="Место"
-                  htmlFor="unit-location"
-                  hint="Полное дерево мест будет на этапе 3."
-                >
-                  <NativeSelect
+                <Field label="Место" htmlFor="unit-location" hint="Поиск идёт по полному пути.">
+                  <LocationPicker
                     id="unit-location"
+                    locations={locationChoices}
                     value={draft.locationId}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, locationId: event.target.value }))
-                    }
-                  >
-                    <option value="">Не назначено</option>
-                    {(locations.data ?? []).map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.full_path || item.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    onChange={(locationId) => setDraft((current) => ({ ...current, locationId }))}
+                    allowEmpty
+                    emptyLabel="Не назначено"
+                  />
                 </Field>
               </div>
               {selectedNomenclature?.requires_verification ? (
@@ -424,27 +405,37 @@ export function UnitsPage() {
       ) : null}
 
       <ul className="flex flex-col gap-3">
-        {(list.data ?? []).map((row) => (
-          <li key={row.id}>
-            <Link
-              to={`/units/${row.code}`}
-              className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-mono text-lg font-semibold">{row.code}</p>
-                <StatusBadge status={row.status} />
-              </div>
-              <p className="mt-2 text-sm">
-                {row.nomenclature_name}
-                {row.model ? ` · ${row.model}` : ''}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {row.serial_number ? `Серийный ${row.serial_number}` : 'Серийный не указан'}
-                {row.location_path ? ` · ${row.location_path}` : ' · место не назначено'}
-              </p>
-            </Link>
-          </li>
-        ))}
+        {(list.data ?? []).map((row) => {
+          const responsible = placeResponsibleNote(row)
+          return (
+            <li key={row.id}>
+              <Link
+                to={`/units/${row.code}`}
+                className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-mono text-lg font-semibold">{row.code}</p>
+                  <StatusBadge status={row.status} />
+                </div>
+                <p className="mt-2 text-sm">
+                  {row.nomenclature_name}
+                  {row.model ? ` · ${row.model}` : ''}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {row.serial_number ? `Серийный ${row.serial_number}` : 'Серийный не указан'}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {row.location_path?.trim() ? row.location_path : 'Место не назначено'}
+                </p>
+                {row.location_id ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {responsible ?? 'Ответственный не назначен'}
+                  </p>
+                ) : null}
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

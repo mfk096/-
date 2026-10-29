@@ -15,8 +15,8 @@ export function HomePage() {
         <h1 className="text-2xl font-semibold tracking-tight">Главная</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
           {display
-            ? `${display.title}, можно вести номенклатуру и единицы оборудования.`
-            : 'Можно вести номенклатуру и единицы оборудования.'}
+            ? `${display.title}, можно вести номенклатуру, единицы и места установки.`
+            : 'Можно вести номенклатуру, единицы и места установки.'}
         </p>
       </header>
 
@@ -25,7 +25,8 @@ export function HomePage() {
           <CardHeader>
             <CardTitle>Уже есть</CardTitle>
             <CardDescription>
-              Вход, номенклатура и единицы с кодами вида KYOC-001. Меню удобно и на телефоне.
+              Вход, номенклатура, единицы с кодами вида KYOC-001 и дерево мест. Меню удобно и на
+              телефоне.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -33,7 +34,8 @@ export function HomePage() {
           <CardHeader>
             <CardTitle>Дальше</CardTitle>
             <CardDescription>
-              Места установки, QR и Android-приложение, поверки, Excel и переезд на сервер завода.
+              Журнал перемещений, QR и Android-приложение, поверки, Excel и переезд на сервер
+              завода.
             </CardDescription>
           </CardHeader>
         </Card>
