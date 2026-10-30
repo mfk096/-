@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { toRussianAuthError } from '@/lib/auth-errors'
 import { hasRecoveryHint } from '@/lib/auth-url'
 import { passwordResetRedirect } from '@/lib/public-url'
+import { signInEmail } from '@/lib/users'
 import { AuthContext, type AuthContextValue } from '@/providers/auth-context'
 import { useConnection } from '@/providers/connection-context'
 
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(configMessage ?? 'Supabase не настроен.')
       }
       const { error } = await client.auth.signInWithPassword({
-        email: email.trim(),
+        email: signInEmail(email),
         password,
       })
       if (error) throw new Error(toRussianAuthError(error.message, error.code))

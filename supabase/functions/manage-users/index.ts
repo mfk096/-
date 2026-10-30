@@ -2,6 +2,8 @@
 // и в репозиторий не кладётся. Вызывать может только активный admin.
 // Регистрация в проекте закрыта: inviteUserByEmail и createUser идут через Admin API.
 // Если письмо не ушло, возвращаем временный пароль один раз.
+// 1.0.1: создание по логину и паролю без почты (технический адрес <логин>@inventory.local,
+// писем нет) и смена пароля любому пользователю (action: 'set_password').
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0'
 
@@ -12,6 +14,9 @@ const cors = {
 }
 
 const roles = new Set(['admin', 'editor', 'viewer'])
+const loginPattern = /^[a-z0-9._-]{3,32}$/
+const technicalDomain = 'inventory.local'
+const minPassword = 8
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -90,6 +95,92 @@ async function ensureProfile(
   }
 }
 
+async function activeCount(admin: SupabaseClient): Promise<number> {
+  const { count, error } = await admin
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_active', true)
+  if (error) throw new Error('Не удалось посчитать пользователей.')
+  return count ?? 0
+}
+
+async function setPassword(admin: SupabaseClient, payload: Record<string, unknown>) {
+  const userId = typeof payload.user_id === 'string' ? payload.user_id : ''
+  const password = typeof payload.password === 'string' ? payload.password : ''
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return json(400, { error: 'Не выбран пользователь.' })
+  if (password.length < minPassword || password.length > 72) {
+    return json(400, { error: `Пароль от ${minPassword} до 72 символов.` })
+  }
+  const updated = await admin.auth.admin.updateUserById(userId, { password })
+  if (updated.error) {
+    console.error('manage-users set_password', updated.error.message)
+    return json(500, { error: 'Не удалось сменить пароль.' })
+  }
+  return json(200, { message: 'Пароль изменён. Передайте его человеку лично.' })
+}
+
+async function createByLogin(
+  admin: SupabaseClient,
+  login: string,
+  realEmail: string,
+  password: string,
+  fullName: string,
+  role: string,
+) {
+  if (!loginPattern.test(login)) {
+    return json(400, { error: 'Логин: 3–32 символа, латиница, цифры, точка, дефис, подчёркивание.' })
+  }
+  if (password.length < minPassword || password.length > 72) {
+    return json(400, { error: `Пароль от ${minPassword} до 72 символов.` })
+  }
+  if (realEmail && (!realEmail.includes('@') || !realEmail.slice(realEmail.indexOf('@')).includes('.'))) {
+    return json(400, { error: 'Проверьте email или оставьте поле пустым.' })
+  }
+  if (realEmail.toLowerCase().endsWith(`@${technicalDomain}`)) {
+    return json(400, { error: 'Этот адрес зарезервирован. Оставьте email пустым.' })
+  }
+
+  const { data: taken, error: takenError } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('username', login)
+    .limit(1)
+  if (takenError) return json(500, { error: 'Не удалось проверить логин.' })
+  if ((taken ?? []).length > 0) return json(409, { error: 'Такой логин уже занят.' })
+
+  const email = realEmail || `${login}@${technicalDomain}`
+  if (await findUserId(admin, email)) {
+    return json(409, { error: realEmail ? 'Пользователь с таким email уже есть.' : 'Такой логин уже занят.' })
+  }
+  if ((await activeCount(admin)) >= 10) {
+    return json(400, { error: 'Одновременно может быть не больше 10 активных пользователей.' })
+  }
+
+  const created = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, username: login },
+  })
+  if (created.error || !created.data.user) {
+    const message = created.error?.message ?? ''
+    if (isAlreadyRegistered(message)) return json(409, { error: 'Такой логин или email уже занят.' })
+    return json(500, { error: safeMessage(message) })
+  }
+  const userId = created.data.user.id
+  const updated = await admin
+    .from('profiles')
+    .update({ full_name: fullName, role, email, username: login })
+    .eq('id', userId)
+  if (updated.error) throw new Error(updated.error.message)
+
+  return json(200, {
+    delivery: 'login',
+    login,
+    message: `Учётная запись создана. Вход: логин «${login}» и заданный пароль.`,
+  })
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (request.method !== 'POST') return json(405, { error: 'Нужен запрос POST.' })
@@ -124,7 +215,7 @@ Deno.serve(async (request) => {
     .maybeSingle()
   if (profileError) return json(500, { error: 'Не удалось проверить роль.' })
   if (!profile || profile.role !== 'admin' || !profile.is_active) {
-    return json(403, { error: 'Приглашать пользователей может только администратор.' })
+    return json(403, { error: 'Управлять пользователями может только администратор.' })
   }
 
   let payload: Record<string, unknown>
@@ -136,9 +227,33 @@ Deno.serve(async (request) => {
     return json(400, { error: 'Не удалось прочитать запрос.' })
   }
 
+  if (payload.action === 'set_password') {
+    try {
+      return await setPassword(admin, payload)
+    } catch (error) {
+      console.error('manage-users', error instanceof Error ? error.message : '')
+      return json(500, { error: 'Не удалось сменить пароль.' })
+    }
+  }
+
   const email = typeof payload.email === 'string' ? payload.email.trim() : ''
   const fullName = typeof payload.full_name === 'string' ? payload.full_name.trim() : ''
   const role = typeof payload.role === 'string' ? payload.role : 'viewer'
+  const login = typeof payload.login === 'string' ? payload.login.trim().toLowerCase() : ''
+
+  if (login) {
+    if (!fullName || fullName.length > 200) return json(400, { error: 'Укажите имя, не длиннее 200 символов.' })
+    if (!roles.has(role)) return json(400, { error: 'Роль должна быть admin, editor или viewer.' })
+    const password = typeof payload.password === 'string' ? payload.password : ''
+    try {
+      return await createByLogin(admin, login, email, password, fullName, role)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      console.error('manage-users', message)
+      return json(500, { error: safeMessage(message) })
+    }
+  }
+
   if (!email.includes('@') || !email.slice(email.indexOf('@')).includes('.')) {
     return json(400, { error: 'Введите корректный email.' })
   }

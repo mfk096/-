@@ -11,7 +11,13 @@ import { useAccess } from '@/hooks/use-profile'
 import { errorText } from '@/lib/errors'
 import { appRoles, roleLabel } from '@/lib/labels'
 import { supabase, supabaseConfigMessage } from '@/lib/supabase'
-import { inviteAppUser, type InviteResult } from '@/lib/users'
+import {
+  inviteAppUser,
+  isTechnicalEmail,
+  loginPattern,
+  setUserPassword,
+  type InviteResult,
+} from '@/lib/users'
 import { useAuth } from '@/providers/auth-context'
 import type { AppRole } from '@/types/database'
 
@@ -21,6 +27,11 @@ export function UsersPage() {
   const { user } = useAuth()
   const access = useAccess()
   const queryClient = useQueryClient()
+  const [mode, setMode] = useState<'login' | 'email'>('login')
+  const [login, setLogin] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordFor, setPasswordFor] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<AppRole>('viewer')
@@ -36,7 +47,7 @@ export function UsersPage() {
       if (!client) throw new Error('Supabase не настроен.')
       const { data, error } = await client
         .from('profiles')
-        .select('id, full_name, email, role, is_active, created_at')
+        .select('id, full_name, email, username, role, is_active, created_at')
         .order('full_name')
       if (error) throw error
       return data ?? []
@@ -47,11 +58,16 @@ export function UsersPage() {
     mutationFn: async () => {
       const client = supabase
       if (!client) throw new Error('Supabase не настроен.')
-      return inviteAppUser(client, { email, fullName, role })
+      return inviteAppUser(
+        client,
+        mode === 'login' ? { email, fullName, role, login, password } : { email, fullName, role },
+      )
     },
     onSuccess: async (result) => {
       setIssued(result)
       setEmail('')
+      setLogin('')
+      setPassword('')
       setFullName('')
       setRole('viewer')
       setFormError(null)
@@ -82,6 +98,20 @@ export function UsersPage() {
     onError: (error) => toast.error(errorText(error, 'Не удалось сменить роль')),
   })
 
+  const changePassword = useMutation({
+    mutationFn: async (input: { userId: string; password: string }) => {
+      const client = supabase
+      if (!client) throw new Error('Supabase не настроен.')
+      await setUserPassword(client, input)
+    },
+    onSuccess: () => {
+      setPasswordFor(null)
+      setNewPassword('')
+      toast.success('Пароль изменён. Передайте его человеку лично.')
+    },
+    onError: (error) => toast.error(errorText(error, 'Не удалось сменить пароль')),
+  })
+
   const saveActive = useMutation({
     mutationFn: async (input: { id: string; isActive: boolean }) => {
       const client = supabase
@@ -106,7 +136,20 @@ export function UsersPage() {
     setIssued(null)
     const trimmedEmail = email.trim()
     const trimmedName = fullName.trim()
-    if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+    if (mode === 'login') {
+      if (!loginPattern.test(login.trim().toLowerCase())) {
+        setFormError('Логин: 3–32 символа, латиница, цифры, точка, дефис, подчёркивание.')
+        return
+      }
+      if (password.length < 8) {
+        setFormError('Пароль не короче 8 символов.')
+        return
+      }
+      if (trimmedEmail && (!trimmedEmail.includes('@') || !trimmedEmail.includes('.'))) {
+        setFormError('Проверьте email или оставьте поле пустым.')
+        return
+      }
+    } else if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
       setFormError('Введите корректный email.')
       return
     }
@@ -156,8 +199,8 @@ export function UsersPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Пользователи</h1>
         <p className="mt-2 text-muted-foreground">
-          Регистрация закрыта. Администратор приглашает человека по email. Одновременно не больше{' '}
-          {activeLimit} активных учётных записей
+          Регистрация закрыта. Администратор создаёт учётную запись по логину и паролю или
+          приглашает по email. Одновременно не больше {activeLimit} активных учётных записей
           {users.data ? ` (сейчас ${activeCount}).` : '.'}
         </p>
       </header>
@@ -169,21 +212,66 @@ export function UsersPage() {
       {access.role === 'admin' ? (
         <Card>
           <CardHeader>
-            <CardTitle>Пригласить</CardTitle>
+            <CardTitle>Новый пользователь</CardTitle>
             <CardDescription>
-              Сначала уходит письмо со ссылкой, чтобы человек сам задал пароль. Если почта сервера
-              недоступна, здесь один раз покажется временный пароль — передайте его лично.
+              {mode === 'login'
+                ? 'Логин и пароль задаёте вы и передаёте человеку лично. Писем не будет. Забытый пароль меняется здесь же.'
+                : 'Сначала уходит письмо со ссылкой, чтобы человек сам задал пароль. Если почта сервера недоступна, здесь один раз покажется временный пароль — передайте его лично.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="flex flex-col gap-4" onSubmit={(event) => handleInvite(event)}>
-              <Field label="Email" htmlFor="invite-email">
+              <Field label="Способ" htmlFor="invite-mode">
+                <NativeSelect
+                  id="invite-mode"
+                  value={mode}
+                  onChange={(event) => setMode(event.target.value as 'login' | 'email')}
+                >
+                  <option value="login">Логин и пароль</option>
+                  <option value="email">Приглашение по email</option>
+                </NativeSelect>
+              </Field>
+              {mode === 'login' ? (
+                <>
+                  <Field
+                    label="Логин"
+                    htmlFor="invite-login"
+                    hint="3–32 символа: латиница, цифры, точка, дефис, подчёркивание."
+                  >
+                    <Input
+                      id="invite-login"
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      required
+                      className="h-11"
+                      value={login}
+                      onChange={(event) => setLogin(event.target.value.toLowerCase())}
+                    />
+                  </Field>
+                  <Field label="Пароль" htmlFor="invite-password" hint="Не короче 8 символов.">
+                    <Input
+                      id="invite-password"
+                      type="text"
+                      autoComplete="new-password"
+                      required
+                      className="h-11"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              <Field
+                label={mode === 'login' ? 'Email (необязательно)' : 'Email'}
+                htmlFor="invite-email"
+              >
                 <Input
                   id="invite-email"
                   type="email"
                   inputMode="email"
                   autoComplete="off"
-                  required
+                  required={mode === 'email'}
                   className="h-11"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -217,7 +305,7 @@ export function UsersPage() {
                 </p>
               ) : null}
               <Button type="submit" className="h-11 w-full sm:w-auto" disabled={invite.isPending}>
-                {invite.isPending ? 'Отправляем…' : 'Пригласить'}
+                {invite.isPending ? 'Сохраняем…' : mode === 'login' ? 'Создать' : 'Пригласить'}
               </Button>
             </form>
             {issued?.temporaryPassword ? (
@@ -269,7 +357,9 @@ export function UsersPage() {
                 <CardHeader className="gap-1">
                   <CardTitle className="text-base break-words">{item.full_name}</CardTitle>
                   <CardDescription className="break-all">
-                    {item.email || 'Email появится после миграции профилей'}
+                    {item.username ? `Логин: ${item.username}` : 'Логин: —'}
+                    {' · '}
+                    {item.email && !isTechnicalEmail(item.email) ? item.email : 'email: —'}
                     {self ? ' · это вы' : ''}
                     {item.is_active ? '' : ' · отключён'}
                   </CardDescription>
@@ -298,6 +388,56 @@ export function UsersPage() {
                     </NativeSelect>
                   </Field>
                   <p className="text-xs text-muted-foreground">Сейчас: {roleLabel(item.role)}</p>
+                  {passwordFor === item.id ? (
+                    <form
+                      className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        if (newPassword.length < 8) {
+                          toast.error('Пароль не короче 8 символов.')
+                          return
+                        }
+                        changePassword.mutate({ userId: item.id, password: newPassword })
+                      }}
+                    >
+                      <Field label="Новый пароль" htmlFor={`password-${item.id}`}>
+                        <Input
+                          id={`password-${item.id}`}
+                          type="text"
+                          autoComplete="new-password"
+                          className="h-11"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                        />
+                      </Field>
+                      <Button type="submit" className="h-11" disabled={changePassword.isPending}>
+                        {changePassword.isPending ? 'Сохраняем…' : 'Сохранить пароль'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11"
+                        onClick={() => {
+                          setPasswordFor(null)
+                          setNewPassword('')
+                        }}
+                      >
+                        Отмена
+                      </Button>
+                    </form>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full sm:w-auto"
+                      onClick={() => {
+                        setPasswordFor(item.id)
+                        setNewPassword('')
+                      }}
+                    >
+                      Сменить пароль
+                    </Button>
+                  )}
                   {self ? (
                     <p className="text-sm text-muted-foreground">
                       Свою учётную запись отключить нельзя.
