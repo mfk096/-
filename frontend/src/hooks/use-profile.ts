@@ -15,7 +15,7 @@ export function useProfile() {
       if (!client || !userId) throw new Error('Нет сессии')
       const { data, error } = await client
         .from('profiles')
-        .select('id, full_name, email, role, is_active, created_at, updated_at')
+        .select('id, full_name, email, username, role, is_active, created_at, updated_at')
         .eq('id', userId)
         .maybeSingle()
       if (error) throw error

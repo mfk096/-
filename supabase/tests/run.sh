@@ -80,6 +80,8 @@ run_rules() {
   psql_db "$url" -f "$ROOT/supabase/tests/10_stage7.sql"
   echo "== owner prefix and places"
   psql_db "$url" -f "$ROOT/supabase/tests/11_owner_rules.sql"
+  echo "== usernames"
+  psql_db "$url" -f "$ROOT/supabase/tests/12_usernames.sql"
   rm -rf "$tmp"
 }
 

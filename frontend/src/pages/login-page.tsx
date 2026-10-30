@@ -8,6 +8,7 @@ import { SupabaseConfigNotice } from '@/components/supabase-config-notice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { loginPattern } from '@/lib/users'
 import { useAuth } from '@/providers/auth-context'
 
 type FromLocation = {
@@ -44,8 +45,13 @@ export function LoginPage() {
     setError(null)
 
     const trimmedEmail = email.trim()
-    if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
-      setError('Введите корректный email.')
+    if (trimmedEmail.includes('@')) {
+      if (!trimmedEmail.includes('.')) {
+        setError('Введите корректный email или логин.')
+        return
+      }
+    } else if (!loginPattern.test(trimmedEmail.toLowerCase())) {
+      setError('Логин: 3–32 символа, латиница, цифры, точка, дефис, подчёркивание.')
       return
     }
     if (!password) {
@@ -69,7 +75,7 @@ export function LoginPage() {
   return (
     <AuthScreen
       title="Вход"
-      description="Email и пароль учётной записи. Самостоятельной регистрации нет."
+      description="Логин или email и пароль учётной записи. Самостоятельной регистрации нет."
     >
       {!configured ? (
         <SupabaseConfigNotice
@@ -78,13 +84,15 @@ export function LoginPage() {
       ) : (
         <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Логин или email</Label>
             <Input
               id="email"
-              name="email"
-              type="email"
+              name="username"
+              type="text"
               autoComplete="username"
-              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
